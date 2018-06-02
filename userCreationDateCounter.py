@@ -15,9 +15,9 @@ from datetime import datetime
 SUBREDDIT = "teenagers"
 USERNAME = "Watchful1BotTest"
 USER_AGENT = "Counter script (by /u/Watchful1)"
-BEGIN = "2017-12-20"
+BEGIN = "2017-01-01"
 END = "2018-01-01"
-SUBMISSIONS_COMMENTS = "submission" # use "submission" or "comment"
+SUBMISSIONS_COMMENTS = "comment" # use "submission" or "comment"
 OUTPUT = "users.txt"
 
 ### Logging setup
