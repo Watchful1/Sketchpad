@@ -25,6 +25,11 @@ DATABASE_NAME = "database.db"
 BACKLOG_HOURS = 0
 START_TIME = datetime.utcnow()
 
+USERNAME = ""
+PASSWORD = ""
+CLIENT_ID = ""
+CLIENT_SECRET = ""
+
 ### Logging setup ###
 LOG_LEVEL = logging.DEBUG
 if not os.path.exists(LOG_FOLDER_NAME):
@@ -203,28 +208,13 @@ def getIDFromFullname(fullname):
 
 log.debug("Connecting to reddit")
 
-once = False
-debug = False
-user = None
-if len(sys.argv) >= 2:
-	user = sys.argv[1]
-	for arg in sys.argv:
-		if arg == 'once':
-			once = True
-		elif arg == 'debug':
-			debug = True
-else:
-	log.error("No user specified, aborting")
-	sys.exit(0)
 
-
-try:
-	r = praw.Reddit(
-		user
-		,user_agent=USER_AGENT)
-except configparser.NoSectionError:
-	log.error("User "+user+" not in praw.ini, aborting")
-	sys.exit(0)
+r = praw.Reddit(
+	username=USERNAME
+	,password=PASSWORD
+	,client_id=CLIENT_ID
+	,client_secret=CLIENT_SECRET
+	,user_agent=USER_AGENT)
 
 
 def redditorExists(username):
@@ -330,8 +320,5 @@ while True:
 	except Exception as err:
 		log.warning("Hit an error in main loop")
 		log.warning(traceback.format_exc())
-
-	if once:
-		break
 
 	time.sleep(LOOP_TIME)
