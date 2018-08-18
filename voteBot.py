@@ -329,15 +329,15 @@ def getIDFromFullname(fullname):
 log.debug("Connecting to reddit")
 
 
-# r = praw.Reddit(
-# 	username=USERNAME
-# 	,password=PASSWORD
-# 	,client_id=CLIENT_ID
-# 	,client_secret=CLIENT_SECRET
-# 	,user_agent=USER_AGENT)
 r = praw.Reddit(
-	"Watchful1BotTest"
+	username=USERNAME
+	,password=PASSWORD
+	,client_id=CLIENT_ID
+	,client_secret=CLIENT_SECRET
 	,user_agent=USER_AGENT)
+# r = praw.Reddit(
+# 	"Watchful1BotTest"
+# 	,user_agent=USER_AGENT)
 
 
 def redditorExists(username):
