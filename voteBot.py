@@ -80,6 +80,13 @@ c.execute('''
 		UNIQUE (KeyName)
 	)
 ''')
+c.execute('''
+	CREATE TABLE IF NOT EXISTS optOut (
+		ID INTEGER PRIMARY KEY AUTOINCREMENT,
+		Username VARCHAR(80) NOT NULL,
+		UNIQUE (Username)
+	)
+''')
 dbConn.commit()
 
 
@@ -110,6 +117,20 @@ def getVotes():
 		results.append({"user": row[0], "votes": row[1]})
 
 	return results
+
+
+def clearVotesForUser(username):
+	c = dbConn.cursor()
+	c.execute('''
+		DELETE FROM votes
+		WHERE VotedFor = ?
+	''', (username.lower(),))
+	dbConn.commit()
+
+	if c.rowcount == 1:
+		return True
+	else:
+		return False
 
 
 def clearVotes():
@@ -202,6 +223,105 @@ def deleteKey(key):
 		return False
 
 
+def optOut(username):
+	c = dbConn.cursor()
+	try:
+		c.execute('''
+			INSERT INTO optOut
+			(Username)
+			VALUES (?)
+		''', (username.lower(),))
+	except sqlite3.IntegrityError:
+		return False
+
+	dbConn.commit()
+	return True
+
+
+def optedOut(username):
+	c = dbConn.cursor()
+	result = c.execute('''
+		SELECT Username
+		FROM optOut
+		WHERE Username = ?
+	''', (username.lower(),))
+
+	resultTuple = result.fetchone()
+
+	if not resultTuple:
+		return False
+	else:
+		return True
+
+
+def clearOptOuts():
+	c = dbConn.cursor()
+	c.execute('''
+		DELETE FROM optOut
+	''')
+	dbConn.commit()
+
+	if c.rowcount > 0:
+		return True
+	else:
+		return False
+
+
+threadMonth = getValue("threadMonth")
+if threadMonth is None:
+	threadMonth = 13
+else:
+	threadMonth = int(threadMonth)
+
+voteThread = getValue("thread")
+
+
+def endVoting():
+	global dbConn
+	global threadMonth
+	global voteThread
+
+	log.info("Closing thread: {}".format(voteThread))
+	votes = getVotes()
+	bldr = ["Voting finished!\n\n"]
+	for vote in votes:
+		bldr.append(vote["user"])
+		bldr.append(" has ")
+		bldr.append(str(vote["votes"]))
+		bldr.append(" vote(s)  \n")
+	bldr.append("\n\n")
+	winner = votes[0]["user"]
+	bldr.append(winner)
+	bldr.append(" wins!")
+
+	voteThreadSubmission = r.submission(id=voteThread)
+	voteThreadComment = voteThreadSubmission.reply(''.join(bldr))
+	voteThreadComment.mod.distinguish(how='yes', sticky=True)
+	voteThreadSubmission.mod.lock()
+
+	sub.flair.set(winner, "Monthly Winner")
+	r.redditor(winner).message("Monthly Winner", "You won!", from_subreddit=SUBREDDIT)
+
+	dbConn.commit()
+	dbConn.close()
+
+	copyfile(DATABASE_NAME,
+	         voteThread + "-backup.db")
+
+	dbConn = sqlite3.connect("database.db")
+
+	clearVotes()
+	clearOptOuts()
+	deleteKey("thread")
+	deleteKey("threadMonth")
+	voteThread = None
+	threadMonth = 13
+
+
+def compareMonths(firstMonth, secondMonth):
+	return firstMonth < secondMonth or firstMonth == 12 and secondMonth == 1
+
+
 def getIDFromFullname(fullname):
 	return re.findall('^(?:t\d_)?(.{4,8})', fullname)[0]
 
@@ -209,11 +329,14 @@ def getIDFromFullname(fullname):
 log.debug("Connecting to reddit")
 
 
+# r = praw.Reddit(
+# 	username=USERNAME
+# 	,password=PASSWORD
+# 	,client_id=CLIENT_ID
+# 	,client_secret=CLIENT_SECRET
+# 	,user_agent=USER_AGENT)
 r = praw.Reddit(
-	username=USERNAME
-	,password=PASSWORD
-	,client_id=CLIENT_ID
-	,client_secret=CLIENT_SECRET
+	"Watchful1BotTest"
 	,user_agent=USER_AGENT)
 
 
@@ -229,18 +352,24 @@ log.info("Logged into reddit as /u/{}".format(str(r.user.me())))
 
 while True:
 	try:
-		for comment in r.subreddit(SUBREDDIT).stream.comments():
+		sub = r.subreddit(SUBREDDIT)
+		for comment in sub.stream.comments():
+			if compareMonths(threadMonth, datetime.utcnow().month):
+				endVoting()
+
 			if comment is None or datetime.utcfromtimestamp(comment.created_utc) < START_TIME - timedelta(hours=BACKLOG_HOURS) \
 					or comment.author == r.user.me():
 				continue
 			log.info("Processing comment {} from /u/{}".format(comment.id, comment.author.name))
-			voteThread = getValue("thread")
 			body = comment.body.lower()
 			if body.startswith("summonvotebot") and comment.author.name.lower() == REDDIT_OWNER.lower():
 				log.info("Owner summoning vote bot")
 				if voteThread is None:
 					log.info("Successfully summoned for thread: {}".format(getIDFromFullname(comment.link_id)))
-					addKey("thread", getIDFromFullname(comment.link_id))
+					voteThread = getIDFromFullname(comment.link_id)
+					addKey("thread", voteThread)
+					threadMonth = datetime.utcnow().month
+					addKey("threadMonth", str(threadMonth))
 					comment.reply("Thread activated")
 				else:
 					log.info("Bot already active in another thread")
@@ -250,29 +379,7 @@ while True:
 			elif body.startswith("endvotebot") and comment.author.name.lower() == REDDIT_OWNER.lower():
 				log.info("Owner ending vote bot")
 				if voteThread is not None:
-					log.info("Closing thread: {}".format(getIDFromFullname(comment.link_id)))
-					votes = getVotes()
-					bldr = ["Voting finished!\n\n"]
-					for vote in votes:
-						bldr.append(vote["user"])
-						bldr.append(" has ")
-						bldr.append(str(vote["votes"]))
-						bldr.append(" vote(s)  \n")
-					bldr.append("\n\n")
-					bldr.append(votes[0]["user"])
-					bldr.append(" wins!")
-					r.submission(id=voteThread).reply(''.join(bldr))
-
-					dbConn.commit()
-					dbConn.close()
-
-					copyfile(DATABASE_NAME,
-					         voteThread + "-backup.db")
-
-					dbConn = sqlite3.connect("database.db")
-
-					clearVotes()
-					deleteKey("thread")
+					endVoting()
 				else:
 					log.info("Bot not active in this thread")
 					comment.reply("Bot is activated in [this thread]({}{})."
@@ -281,12 +388,18 @@ while True:
 			elif voteThread is not None:
 				if voteThread == getIDFromFullname(comment.link_id):
 					log.info("Comment is in the active thread")
-					if body.startswith("vote"):
+					if body.startswith("optout"):
+						log.info("Opting out comment author: /u/{}".format(comment.author.name))
+						optOut(comment.author.name)
+						clearVotesForUser(comment.author.name)
+						comment.reply("You have opted out of voting")
+					elif body.startswith("vote"):
 						log.info("Vote comment")
 						if isCommentProcessed(comment.id):
 							log.info("Comment already processed")
 						elif hasAuthorVoted(comment.author.name):
 							log.info("Comment author has already voted")
+							comment.reply("You have already voted.")
 						else:
 							votedForArray = re.findall('(?:vote )(?:/u/)?(\w+)', body)
 							if not len(votedForArray):
@@ -298,19 +411,23 @@ while True:
 								if not redditorExists(votedFor):
 									log.info("Redditor doesn't exist")
 								else:
-									result = addVote(comment.id, comment.author.name, votedFor)
-									if not result:
-										log.info("Something went wrong")
+									if optedOut(votedFor):
+										log.info("/u/{} has opted out of voting".format(votedFor))
+										comment.reply("This user has opted out of voting")
 									else:
-										log.info("Successfully voted, posting comment")
-										votes = getVotes()
-										bldr = ["Vote tabulated!\n\n"]
-										for vote in votes:
-											bldr.append(vote["user"])
-											bldr.append(" has ")
-											bldr.append(str(vote["votes"]))
-											bldr.append(" vote(s)  \n")
-										comment.reply(''.join(bldr))
+										result = addVote(comment.id, comment.author.name, votedFor)
+										if not result:
+											log.info("Something went wrong")
+										else:
+											log.info("Successfully voted, posting comment")
+											votes = getVotes()
+											bldr = ["Vote tabulated!\n\n"]
+											for vote in votes:
+												bldr.append(vote["user"])
+												bldr.append(" has ")
+												bldr.append(str(vote["votes"]))
+												bldr.append(" vote(s)  \n")
+											comment.reply(''.join(bldr))
 
 					else:
 						log.info("Not a vote comment")
