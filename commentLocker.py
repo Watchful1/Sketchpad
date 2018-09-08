@@ -121,15 +121,15 @@ def getIDFromFullname(fullname):
 log.debug("Connecting to reddit")
 
 
-# r = praw.Reddit(
-# 	username=USERNAME
-# 	,password=PASSWORD
-# 	,client_id=CLIENT_ID
-# 	,client_secret=CLIENT_SECRET
-# 	,user_agent=USER_AGENT)
 r = praw.Reddit(
-	"Watchful1BotTest"
+	username=USERNAME
+	,password=PASSWORD
+	,client_id=CLIENT_ID
+	,client_secret=CLIENT_SECRET
 	,user_agent=USER_AGENT)
+# r = praw.Reddit(
+# 	"Watchful1BotTest"
+# 	,user_agent=USER_AGENT)
 
 
 log.info(f"Logged into reddit as /u/{str(r.user.me())}")
@@ -148,9 +148,17 @@ while True:
 				removeComment(getIDFromFullname(comment.parent_id))
 				log.info(f"Removed comment {comment.id}")
 
-			elif isCommentLocked(getIDFromFullname(comment.parent_id)):
-				log.info(f"Reply to locked comment {comment.parent_id}, removing {comment.id}")
-				comment.mod.remove()
+			else:
+				parent = comment.parent()
+				while not parent.name.startswith("t3"):
+					log.debug(f"Checking parent {parent.id}")
+					if isCommentLocked(parent.id):
+						log.info(f"Reply to locked comment {parent.id}, removing {comment.id}")
+						comment.mod.remove()
+						break
+					parent = parent.parent()
+					if parent is None:
+						break
 
 	except Exception as err:
 		log.warning("Hit an error in main loop")
