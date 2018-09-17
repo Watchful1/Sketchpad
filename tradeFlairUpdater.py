@@ -52,25 +52,30 @@ if LOG_FILENAME is not None:
 
 
 user = None
+prawIni = False
 if len(sys.argv) >= 2:
 	user = sys.argv[1]
+	if len(sys.argv) >= 3 and sys.argv[2] == 'prawini':
+		prawIni = True
 else:
 	log.error("No user specified, aborting")
 	sys.exit(0)
 
-r = praw.Reddit(
-	username=USERNAME
-	,password=PASSWORD
-	,client_id=CLIENT_ID
-	,client_secret=CLIENT_SECRET
-	,user_agent=USER_AGENT)
-# try:
-# 	r = praw.Reddit(
-# 		user
-# 		, user_agent=USER_AGENT)
-# except configparser.NoSectionError:
-# 	log.error(f"User {user} not in praw.ini, aborting")
-# 	sys.exit(0)
+if prawIni:
+	try:
+		r = praw.Reddit(
+			user
+			, user_agent=USER_AGENT)
+	except configparser.NoSectionError:
+		log.error(f"User {user} not in praw.ini, aborting")
+		sys.exit(0)
+else:
+	r = praw.Reddit(
+		username=USERNAME
+		,password=PASSWORD
+		,client_id=CLIENT_ID
+		,client_secret=CLIENT_SECRET
+		,user_agent=USER_AGENT)
 
 log.info(f"Logged into reddit as /u/{str(r.user.me())}")
 
@@ -108,6 +113,12 @@ while True:
 		break
 
 	for object in objects:
+		previousEpoch = object['created_utc'] - 1
+		if previousEpoch < lastEpoch:
+			log.info("Hit an object older than the previous run time, run complete")
+			breakOut = True
+			break
+
 		comment = r.comment(object['id'])
 		parent = comment.parent()
 		log.info(f"Found new confirmation from /u/{object['author']} for /u/{parent.author.name}, comment {comment.id}")
@@ -132,12 +143,6 @@ while True:
 			flair = f"{text}: {trades}{'+' if trades >= 20 else ''}"
 			log.debug(f"Setting flair to {flair}")
 			sub.flair.set(parent.author, flair)
-
-		previousEpoch = object['created_utc'] - 1
-		if previousEpoch < lastEpoch:
-			log.info("Hit an object older than the previous run time, run complete")
-			breakOut = True
-			break
 	if breakOut:
 		break
 
