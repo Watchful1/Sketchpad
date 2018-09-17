@@ -140,3 +140,7 @@ while True:
 			break
 	if breakOut:
 		break
+
+config['previous']['datetime'] = datetime.strftime(startTime, TIME_FORMAT)
+with open(CONFIG_FILE, 'w') as configfile:
+	config.write(configfile)
