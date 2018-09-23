@@ -14,6 +14,10 @@ USER_AGENT = "Bulk flair updater (by /u/Watchful1)"
 REDDIT_OWNER = "Watchful1"
 LOG_LEVEL = logging.INFO
 
+USERNAME = ""
+PASSWORD = ""
+CLIENT_ID = ""
+CLIENT_SECRET = ""
 
 LOG_FOLDER_NAME = "logs"
 if not os.path.exists(LOG_FOLDER_NAME):
@@ -38,23 +42,34 @@ if LOG_FILENAME is not None:
 
 debug = False
 user = None
+prawIni = False
 if len(sys.argv) >= 2:
 	user = sys.argv[1]
 	for arg in sys.argv:
 		if arg == 'debug':
 			debug = True
+		elif arg == 'prawini':
+			prawIni = True
 else:
 	log.error("No user specified, aborting")
 	sys.exit(0)
 
 
-try:
+if prawIni:
+	try:
+		r = praw.Reddit(
+			user
+			, user_agent=USER_AGENT)
+	except configparser.NoSectionError:
+		log.error(f"User {user} not in praw.ini, aborting")
+		sys.exit(0)
+else:
 	r = praw.Reddit(
-		user
+		username=USERNAME
+		,password=PASSWORD
+		,client_id=CLIENT_ID
+		,client_secret=CLIENT_SECRET
 		,user_agent=USER_AGENT)
-except configparser.NoSectionError:
-	log.error("User "+user+" not in praw.ini, aborting")
-	sys.exit(0)
 
 log.info("Logged into reddit as /u/{}".format(str(r.user.me())))
 
