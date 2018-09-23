@@ -9,7 +9,7 @@ import signal
 import time
 import traceback
 
-SUBREDDIT = "SubTestBot1"
+SUBREDDIT = "sports"
 USER_AGENT = "Bulk flair updater (by /u/Watchful1)"
 REDDIT_OWNER = "Watchful1"
 LOG_LEVEL = logging.INFO
@@ -20,9 +20,9 @@ CLIENT_ID = ""
 CLIENT_SECRET = ""
 
 flair_config = {
-	'oldFlair1': 'newFlair1',
-	'oldFlair2': 'newFlair2',
-	'oldFlair3': 'newFlair3',
+	'oldCSS1': 'newFlair1',
+	'oldCSS2': 'newFlair2',
+	'oldCSS3': 'newFlair3',
 }
 
 LOG_FOLDER_NAME = "logs"
@@ -88,15 +88,15 @@ try:
 	for flair in sub.flair(limit=None):
 		numFlairs += 1
 
-		if flair['flair_text'] in flair_config:
+		if flair['flair_css_class'] in flair_config:
 			item = {
 				'user': flair['user'].name,
-				'flair_text': flair_config[flair['flair_text']]
+				'flair_text': flair_config[flair['flair_css_class']]
 			}
 			flair_map.append(item)
-			log.info("/u/%s from '%s' to '%s'", flair['user'].name, flair['flair_text'], flair_config[flair['flair_text']])
+			log.info("/u/%s from '%s' to '%s'", flair['user'].name, flair['flair_css_class'], flair_config[flair['flair_css_class']])
 		else:
-			log.debug("/u/%s unchanged from '%s'", flair['user'].name, flair['flair_text'])
+			log.debug("/u/%s unchanged from '%s'", flair['user'].name, flair['flair_css_class'])
 
 	log.info("Found %d flairs in %d seconds", numFlairs, int(time.perf_counter() - startTime))
 	startTime = time.perf_counter()
