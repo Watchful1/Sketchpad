@@ -9,7 +9,7 @@ import signal
 import time
 import traceback
 
-SUBREDDIT = "SubTestBot1"
+SUBREDDIT = "sports"
 USER_AGENT = "Bulk flair updater (by /u/Watchful1)"
 REDDIT_OWNER = "Watchful1"
 LOG_LEVEL = logging.INFO
