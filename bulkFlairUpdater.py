@@ -9,7 +9,7 @@ import signal
 import time
 import traceback
 
-SUBREDDIT = "sports"
+SUBREDDIT = "SubTestBot1"
 USER_AGENT = "Bulk flair updater (by /u/Watchful1)"
 REDDIT_OWNER = "Watchful1"
 LOG_LEVEL = logging.INFO
@@ -18,6 +18,12 @@ USERNAME = ""
 PASSWORD = ""
 CLIENT_ID = ""
 CLIENT_SECRET = ""
+
+flair_config = {
+	'oldFlair1': 'newFlair1',
+	'oldFlair2': 'newFlair2',
+	'oldFlair3': 'newFlair3',
+}
 
 LOG_FOLDER_NAME = "logs"
 if not os.path.exists(LOG_FOLDER_NAME):
@@ -76,15 +82,27 @@ log.info("Logged into reddit as /u/{}".format(str(r.user.me())))
 try:
 	sub = r.subreddit(SUBREDDIT)
 	startTime = time.perf_counter()
-	flairTypes = set()
+
 	numFlairs = 0
+	flair_map = []
 	for flair in sub.flair(limit=None):
-		log.debug(flair)
-		flairTypes.add(flair['flair_text'])
 		numFlairs += 1
 
-	log.info("Found %d flairs, %d unique, in %d seconds", numFlairs, len(flairTypes), int(time.perf_counter() - startTime))
+		if flair['flair_text'] in flair_config:
+			item = {
+				'user': flair['user'].name,
+				'flair_text': flair_config[flair['flair_text']]
+			}
+			flair_map.append(item)
+			log.info("/u/%s from '%s' to '%s'", flair['user'].name, flair['flair_text'], flair_config[flair['flair_text']])
+		else:
+			log.debug("/u/%s unchanged from '%s'", flair['user'].name, flair['flair_text'])
 
+	log.info("Found %d flairs in %d seconds", numFlairs, int(time.perf_counter() - startTime))
+	startTime = time.perf_counter()
+	log.info("Updating %d flairs. Running update function, this could take a while.", len(flair_map))
+	sub.flair.update(flair_map)
+	log.info("Done in %d seconds", int(time.perf_counter() - startTime))
 except Exception as err:
 	log.warning("Hit an error in main loop")
 	log.warning(traceback.format_exc())
