@@ -54,14 +54,15 @@ if len(sys.argv) >= 2:
 	for arg in sys.argv:
 		if arg == 'debug':
 			debug = True
+			log.setLevel(logging.DEBUG)
 		elif arg == 'prawini':
 			prawIni = True
-else:
-	log.error("No user specified, aborting")
-	sys.exit(0)
 
 
 if prawIni:
+	if user is None:
+		log.error("No user specified, aborting")
+		sys.exit(0)
 	try:
 		r = praw.Reddit(
 			user
