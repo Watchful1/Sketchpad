@@ -51,17 +51,22 @@ if LOG_FILENAME is not None:
 	log.addHandler(log_fileHandler)
 
 
+debug = False
 user = None
 prawIni = False
 if len(sys.argv) >= 2:
 	user = sys.argv[1]
-	if len(sys.argv) >= 3 and sys.argv[2] == 'prawini':
-		prawIni = True
-else:
-	log.error("No user specified, aborting")
-	sys.exit(0)
+	for arg in sys.argv:
+		if arg == 'debug':
+			debug = True
+			log.setLevel(logging.DEBUG)
+		elif arg == 'prawini':
+			prawIni = True
 
 if prawIni:
+	if user is None:
+		log.error("No user specified, aborting")
+		sys.exit(0)
 	try:
 		r = praw.Reddit(
 			user
