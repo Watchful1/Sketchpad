@@ -47,29 +47,36 @@ def bot_login():
 	return r
 
 
+def checkComment(comment):
+	if comment.saved:
+		return
+
+	for species in specieslist:
+		if "*" + species + "*" in comment.body:
+			print("String with \"+ species""\" found in comment " + comment.id)
+			with open(species + ".txt", "r") as f:
+				comment_reply = f.read()
+				comment.reply(comment_reply + "\n\n" + sig)
+				print("Replied to comment " + comment.id)
+
+	for command in commands:
+		if "!" + command['command'] in comment.body:
+			print("!" + command['command'] + " found in comment " + comment.id)
+			comment.reply(command['text'])
+
+	comment.save()
+
+
 def run_bot(r):
 	print("Obtaining 10 comments...")
 
 	for username in list_of_names:
 		user = r.redditor(username)
 		for comment in user.comments.new(limit=10):
-			if comment.saved:
-				break
+			checkComment(comment)
 
-			for species in specieslist:
-				if "*" + species + "*" in comment.body:
-					print("String with \"+ species""\" found in comment " + comment.id)
-					with open(species + ".txt", "r") as f:
-						comment_reply = f.read()
-						comment.reply(comment_reply + "\n\n" + sig)
-						print("Replied to comment " + comment.id)
-
-			for command in commands:
-				if "!" + command['command'] in comment.body:
-					print("!" + command['command'] + " found in comment " + comment.id)
-					comment.reply(command['text'])
-
-			comment.save()
+	for comment in r.subreddit('whatsthissnaketest').comments(limit=10):
+		checkComment(comment)
 
 	for submission in r.subreddit('whatsthissnaketest').new(limit=10):
 		if submission.saved:
