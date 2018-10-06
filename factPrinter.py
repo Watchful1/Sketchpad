@@ -4,6 +4,7 @@ import time
 import os
 import requests
 import re
+import traceback
 
 from datetime import datetime
 
@@ -104,7 +105,11 @@ def run_bot(r):
 r = bot_login()
 
 while True:
-	run_bot(r)
+	try:
+		run_bot(r)
+	except Exception as err:
+		print("Hit an error in main loop")
+		print(traceback.format_exc())
 
 	print("Sleeping for 30 seconds...")
 	time.sleep(30)
