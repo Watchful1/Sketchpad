@@ -113,17 +113,21 @@ startTime = datetime.utcnow()
 
 config = configparser.ConfigParser()
 config.read(CONFIG_FILE)
-if 'previous' not in config.sections():
-	lastTime = startTime
+if 'flair_config' not in config.sections():
 	log.info(f"Config not found, setting start time to {lastTime.strftime(TIME_FORMAT)}")
-	config['previous'] = {}
-	config['previous']['datetime'] = datetime.strftime(lastTime, TIME_FORMAT)
+	config['flair_config'] = {}
+	config['flair_config']['last_run'] = datetime.strftime(startTime, TIME_FORMAT)
+	config['flair_config']['thread'] = "None"
 	with open(CONFIG_FILE, 'w') as configfile:
 		config.write(configfile)
+	sys.exit()
 else:
-	strTime = config['previous']['datetime']
+	strTime = config['flair_config']['last_run']
 	log.info(f"Loading last run time as {strTime}")
 	lastTime = datetime.strptime(strTime, TIME_FORMAT)
+
+	thread_id = config['flair_config']['thread']
+	log.info(f"Loading thread as {thread_id}")
 
 log.info(f"Running for {startTime - lastTime}")
 
@@ -149,8 +153,17 @@ while True:
 			breakOut = True
 			break
 
+		if object['link_id'][3:] != thread_id:
+			log.debug(f"Comment not in thread, skipping: {object['id']}")
+
 		comment = r.comment(object['id'])
+
 		parent = comment.parent()
+
+		if f'u/{comment.author.lower()}' not in parent.body.lower():
+			log.debug(f"Parent doesn't contain comment author, skipping: {comment.id}")
+			continue
+
 		log.info(f"Found new confirmation from /u/{object['author']} for /u/{parent.author.name}, comment {comment.id}")
 		incrementFlair(comment.author_flair_text, comment.author, sub)
 		incrementFlair(parent.author_flair_text, parent.author, sub)
