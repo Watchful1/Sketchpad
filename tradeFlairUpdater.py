@@ -84,6 +84,31 @@ else:
 
 log.info(f"Logged into reddit as /u/{str(r.user.me())}")
 
+
+def incrementFlair(flair_text, user, sub):
+	if flair_text == "None":
+		trades = 1
+	else:
+		nums = re.findall('(\d+)', str(flair_text))
+		if len(nums) != 1:
+			log.info(f"Couldn't find number in flair, setting to 1: {flair_text}")
+			trades = 1
+		else:
+			trades = int(nums[0])
+
+	if trades >= 20:
+		log.info("20+ trades, not updating flair")
+	else:
+		log.info(f"Setting trades to {trades} for /u/{user.name}")
+		for tier in TIERS:
+			if tier['start'] > trades:
+				break
+			text = tier['text']
+		flair = f"{text}: {trades}{'+' if trades >= 20 else ''}"
+		log.debug(f"Setting flair to {flair}")
+		sub.flair.set(user, flair)
+
+
 startTime = datetime.utcnow()
 
 config = configparser.ConfigParser()
@@ -127,27 +152,8 @@ while True:
 		comment = r.comment(object['id'])
 		parent = comment.parent()
 		log.info(f"Found new confirmation from /u/{object['author']} for /u/{parent.author.name}, comment {comment.id}")
-		if parent.author_flair_text == "None":
-			trades = 1
-		else:
-			nums = re.findall('(\d+)', str(parent.author_flair_text))
-			if len(nums) != 1:
-				log.info(f"Couldn't find number in flair, setting to 1: {parent.author_flair_text}")
-				trades = 1
-			else:
-				trades = int(nums[0])
-
-		if trades >= 20:
-			log.info("20+ trades, not updating flair")
-		else:
-			log.info(f"Setting trades to {trades} for /u/{parent.author.name}")
-			for tier in TIERS:
-				if tier['start'] > trades:
-					break
-				text = tier['text']
-			flair = f"{text}: {trades}{'+' if trades >= 20 else ''}"
-			log.debug(f"Setting flair to {flair}")
-			sub.flair.set(parent.author, flair)
+		incrementFlair(comment.author_flair_text, comment.author, sub)
+		incrementFlair(parent.author_flair_text, parent.author, sub)
 	if breakOut:
 		break
 
