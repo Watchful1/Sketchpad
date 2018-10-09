@@ -114,7 +114,7 @@ startTime = datetime.utcnow()
 config = configparser.ConfigParser()
 config.read(CONFIG_FILE)
 if 'flair_config' not in config.sections():
-	log.info(f"Config not found, setting start time to {lastTime.strftime(TIME_FORMAT)}")
+	log.info(f"Config not found, setting start time to {startTime.strftime(TIME_FORMAT)}")
 	config['flair_config'] = {}
 	config['flair_config']['last_run'] = datetime.strftime(startTime, TIME_FORMAT)
 	config['flair_config']['thread'] = "None"
