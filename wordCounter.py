@@ -1,51 +1,108 @@
 import json
 import time
 import bisect
+import os
+import sys
+from collections import defaultdict
 
-f = open('RS_2018-09', 'r')
-totalSubmission = 13107215  # set manually after running once
+folder = r"D:\temp"
+numFiles = 0
+totalSize = 0
+paths = []
+for jsonFile in os.listdir(folder):
+	if jsonFile.endswith(".xz") or jsonFile.endswith(".bz2"):
+		continue
+	numFiles += 1
+	path = folder+"\\"+jsonFile
+	paths.append(path)
+	totalSize += os.path.getsize(path)
 
-counter = 0
-wordsCount = {}
+totalSizeInMb = "{:,}".format(int(totalSize/1000000))
+print(f"Parsing {numFiles} files of total size {totalSizeInMb} mb")
+
+#sys.exit()
+
+totalSeconds = 0
+totalBytesParsed = 0
+totalFilesParsed = 0
+totalFileSubmissions = 0
+submissionsPerByte = 1
+
+trimmedWords = 0
+
+totalSubmissions = 0
+allWords = defaultdict(int)
 startTime = time.perf_counter()
-for submissionLine in f:
-	counter += 1
+for path in paths:
+	with open(path, 'r') as f:
+		print(f"Parsing: {path}")
+		currentSubmissions = 0
+		totalFilesParsed += 1
+		currentFileSize = os.path.getsize(path)
+		for submissionLine in f:
+			totalSubmissions += 1
+			currentSubmissions += 1
 
-	submission = json.loads(submissionLine)
-	words = submission['title'].lower().split(" ")
-	for word in words:
-		if word in wordsCount:
-			wordsCount[word] += 1
-		else:
-			wordsCount[word] = 1
+			submission = json.loads(submissionLine)
+			words = submission['title'].lower().split(" ")
+			for word in words:
+				allWords[word] += 1
 
-	if counter % 10000 == 0:
-		seconds = int(time.perf_counter() - startTime)
-		if seconds == 0:
-			speed = 1
-		else:
-			speed = int(counter / seconds)
-		secondsLeft = int((totalSubmission - counter) / speed)
-		print(f"Submissions: {counter}, per second {speed}. Seconds left {secondsLeft}")
+			if currentSubmissions % 10000 == 0:
+				seconds = int(time.perf_counter() - startTime)
+				speed = int(totalSubmissions / max(seconds, 1))
+				if totalBytesParsed == 0:
+					print(f"File {totalFilesParsed}/{numFiles}, submissions, {currentSubmissions}, per second {speed}")
+				else:
+					submissionsInFile = int(currentFileSize * submissionsPerByte)
+					submissionsLeftFile = submissionsInFile - currentSubmissions
+					secondsLeftFile = int(submissionsLeftFile / speed)
+					submissionsTotal = int(totalSize * submissionsPerByte)
+					submissionsLeftTotal = submissionsTotal - totalSubmissions
+					secondsLeftTotal = int(submissionsLeftTotal / speed)
 
+					print(f"File {totalFilesParsed}/{numFiles}, submissions, {currentSubmissions}, per second {speed}. Left file {secondsLeftFile}, total {secondsLeftTotal}")
+
+			# if currentSubmissions % 100000 == 0:
+			# 	break
+
+		totalBytesParsed += currentFileSize
+		totalFileSubmissions += currentSubmissions
+		submissionsPerByte = totalFileSubmissions / totalBytesParsed
+
+		# trim allWords so we don't run out of memory. Doing this means there's a small chance we lose words
+		# that might otherwise appear in higher numbers in other months, but I think it's unlikely
+		beforeAllSize = len(allWords)
+		for key in list(allWords.keys()):
+			if allWords[key] < 1000:
+				trimmedWords += allWords[key]
+				del allWords[key]
+		print(f"Allwords trimmed from {beforeAllSize} to {len(allWords)}")
+
+
+print(f"{totalSubmissions} total submissions in {int(time.perf_counter() - startTime)} seconds")
+
+print(f"Found {len(allWords) + trimmedWords} words")
+
+stopWords = set()
+f = open('stopwords.txt', 'r')
+for word in f:
+	stopWords.add(word.strip())
+print(f"Excluding {len(stopWords)}")
 f.close()
-print(f"{counter} total submissions in {int(time.perf_counter() - startTime)} seconds")
-
-print(f"Found {len(wordsCount)} words")
 
 wordsCountSorted = []
 limit = 1000  # let's only look at words that occur at least a thousand times to make sorting easier
-for word in wordsCount:
-	if wordsCount[word] > limit:
-		bisect.insort(wordsCountSorted, (wordsCount[word], word))
+for word in allWords:
+	if allWords[word] > limit:
+		if word not in stopWords:
+			bisect.insort(wordsCountSorted, (allWords[word], word))
 
 print(f"Words over 1000: {len(wordsCountSorted)}")
-# print out the top 100 items
+# print out the top 1000 items
 count = 0
 for wordTuple in wordsCountSorted[::-1]:
 	count += 1
 	print(str(wordTuple[0]) + " : " + str(wordTuple[1]))
-	if count > 100:
+	if count > 1000:
 		break
-
-
