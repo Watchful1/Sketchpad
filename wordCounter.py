@@ -5,6 +5,14 @@ import os
 import sys
 from collections import defaultdict
 
+# with open(file, 'rb') as handle:
+# 	decomp = lzma.LZMADecompressor(lzma.FORMAT_XZ)
+# 	while not decomp.eof:
+# 		comp_data = handle.read(32000)
+# 		uncomp_data = decomp.decompress(comp_data)
+# 		string_data = uncomp_data.decode('utf-8')
+# 		print(string_data)
+
 folder = r"D:\temp"
 numFiles = 0
 totalSize = 0

@@ -160,7 +160,11 @@ while True:
 
 		parent = comment.parent()
 
-		if f'u/{comment.author.lower()}' not in parent.body.lower():
+		if parent.name.startswith("t3"):
+			log.debug(f"This is a top level comment, skipping: {comment.id}")
+			continue
+
+		if f'u/{comment.author.name.lower()}' not in parent.body.lower():
 			log.debug(f"Parent doesn't contain comment author, skipping: {comment.id}")
 			continue
 
