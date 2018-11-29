@@ -174,6 +174,6 @@ while True:
 	if breakOut:
 		break
 
-config['previous']['datetime'] = datetime.strftime(startTime, TIME_FORMAT)
+config['flair_config']['last_run'] = datetime.strftime(startTime, TIME_FORMAT)
 with open(CONFIG_FILE, 'w') as configfile:
 	config.write(configfile)
