@@ -12,15 +12,21 @@ import sqlite3
 from datetime import datetime
 from datetime import timedelta
 
-SUBREDDIT = "SubTestBot1"
 USER_AGENT = "Mod Log Notifier (by /u/Watchful1)"
 LOOP_TIME = 3 * 60
-REDDIT_OWNER = "Watchful1"
 DATABASE_NAME = "database.db"
 LOG_LEVEL = logging.INFO
+
+
+SUBREDDIT = "SubTestBot1"
 INFRACTIONS_LIMIT = 3
 DAYS_OLD_TO_CLEAR = 30
 REMOVAL_REASON = "douchebaggary/slur"
+
+USERNAME = ""
+PASSWORD = ""
+CLIENT_ID = ""
+CLIENT_SECRET = ""
 
 
 LOG_FOLDER_NAME = "logs"
@@ -193,6 +199,7 @@ def deleteKey(key):
 once = False
 debug = False
 user = None
+prawIni = False
 if len(sys.argv) >= 2:
 	user = sys.argv[1]
 	for arg in sys.argv:
@@ -201,18 +208,28 @@ if len(sys.argv) >= 2:
 		elif arg == 'debug':
 			debug = True
 			log.setLevel(logging.DEBUG)
+		elif arg == 'prawini':
+			prawIni = True
+
+
+if prawIni:
+	if user is None:
+		log.error("No user specified, aborting")
+		sys.exit(0)
+	try:
+		r = praw.Reddit(
+			user
+			, user_agent=USER_AGENT)
+	except configparser.NoSectionError:
+		log.error(f"User {user} not in praw.ini, aborting")
+		sys.exit(0)
 else:
-	log.error("No user specified, aborting")
-	sys.exit(0)
-
-
-try:
 	r = praw.Reddit(
-		user
+		username=USERNAME
+		,password=PASSWORD
+		,client_id=CLIENT_ID
+		,client_secret=CLIENT_SECRET
 		,user_agent=USER_AGENT)
-except configparser.NoSectionError:
-	log.error("User "+user+" not in praw.ini, aborting")
-	sys.exit(0)
 
 log.info("Logged into reddit as /u/{}".format(str(r.user.me())))
 
