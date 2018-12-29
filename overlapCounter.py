@@ -47,3 +47,8 @@ for commenter in secondSubredditCommenters:
 print(f"{len(overlapCommenters)} of {len(totalCommenters)} total commenters commented in both subreddits, that's {round((len(overlapCommenters) / len(totalCommenters)) * 100, 2)} percent")
 print(f"{firstSubreddit} has {len(firstSubredditCommenters)} commenters, {round((len(overlapCommenters) / len(firstSubredditCommenters)) * 100, 2)} percent commented in {secondSubreddit}")
 print(f"{secondSubreddit} has {len(secondSubredditCommenters)} commenters, {round((len(overlapCommenters) / len(secondSubredditCommenters)) * 100, 2)} percent commented in {firstSubreddit}")
+
+with open("users.txt", 'w') as txt:
+	for user in overlapCommenters:
+		txt.write(user)
+		txt.write("\n")
