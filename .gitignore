@@ -3,4 +3,4 @@ logs/*
 __pycache__/*
 *.db
 *.ini
-users.txt
+*.txt
