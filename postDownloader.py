@@ -30,6 +30,10 @@ def downloadFromUrl(filename, object_type):
 			count += 1
 			if object_type == 'comment':
 				try:
+					handle.write(str(object['score']))
+					handle.write(" : ")
+					handle.write(datetime.fromtimestamp(object['created_utc']).strftime("%Y-%m-%d"))
+					handle.write("\n")
 					text = object['body']
 					textASCII = text.encode(encoding='ascii', errors='ignore').decode()
 					handle.write(textASCII)
@@ -42,6 +46,10 @@ def downloadFromUrl(filename, object_type):
 					if 'selftext' not in object:
 						continue
 					try:
+						handle.write(str(object['score']))
+						handle.write(" : ")
+						handle.write(datetime.fromtimestamp(object['created_utc']).strftime("%Y-%m-%d"))
+						handle.write("\n")
 						text = object['selftext']
 						textASCII = text.encode(encoding='ascii', errors='ignore').decode()
 						handle.write(textASCII)
@@ -51,7 +59,6 @@ def downloadFromUrl(filename, object_type):
 						print(traceback.format_exc())
 
 		print("Saved {} {}s through {}".format(count, object_type, datetime.fromtimestamp(previous_epoch).strftime("%Y-%m-%d")))
-
 
 	print(f"Saved {count} {object_type}s")
 	handle.close()

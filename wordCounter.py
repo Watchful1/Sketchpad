@@ -13,7 +13,25 @@ from collections import defaultdict
 # 		string_data = uncomp_data.decode('utf-8')
 # 		print(string_data)
 
-folder = r"D:\temp"
+# Alternate method to stream the decompression to handle extremely large files
+# with open("filename.zst", 'rb') as fh:
+#     dctx = zstd.ZstdDecompressor()
+#     with dctx.stream_reader(fh) as reader:
+#         previous_line = ""
+#         while True:
+#             chunk = reader.read(65536)
+#             if not chunk:
+#                 break
+#
+#             string_data = chunk.decode('utf-8')
+#             lines = string_data.split("\n")
+#             for i, line in enumerate(lines[:-1]):
+#                 if i == 0:
+#                     line = previous_line + line
+#                 object = json.loads(line)
+#             previous_line = lines[-1]
+
+folder = r"D:\reddit\submissions"
 numFiles = 0
 totalSize = 0
 paths = []
@@ -28,7 +46,17 @@ for jsonFile in os.listdir(folder):
 totalSizeInMb = "{:,}".format(int(totalSize/1000000))
 print(f"Parsing {numFiles} files of total size {totalSizeInMb} mb")
 
-#sys.exit()
+for path in paths:
+	with open(path, 'r') as f:
+		print(f"Parsing: {path}")
+		currentSubmissions = 0
+		for submissionLine in f:
+			currentSubmissions += 1
+
+			submission = json.loads(submissionLine)
+			if submission['id'] == '6vxtw7':
+				print(str(submission))
+sys.exit()
 
 totalSeconds = 0
 totalBytesParsed = 0
