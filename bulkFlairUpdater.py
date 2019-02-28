@@ -21,9 +21,9 @@ CLIENT_SECRET = ""
 
 # use this section to switch every flair of one css class to a new css class, leaving the text alone
 # turn it on by changing the False on the next line to True
-flair_css_mapping_enabled = False
+flair_css_mapping_enabled = True
 flair_css_mapping = {
-	'oldCss1': 'newCss1',
+	'oldCss1': '115a74ba-3b0d-11e9-b19b-0e3ca9f56e6a',
 	'oldCss2': 'newCss2',
 }
 
@@ -72,11 +72,6 @@ if LOG_FILENAME is not None:
 	log.addHandler(log_fileHandler)
 
 
-if (flair_css_mapping_enabled or flair_text_mapping_enabled) and flair_css_text_mapping_enabled:
-	log.warning("Warning, you can't use the css_text section at the same time as the other two")
-	sys.exit()
-
-
 debug = False
 user = None
 prawIni = False
@@ -113,10 +108,16 @@ log.info("Logged into reddit as /u/{}".format(str(r.user.me())))
 
 try:
 	sub = r.subreddit(SUBREDDIT)
+
+	template_ids = set()
+	for template in sub.flair.templates:
+		template_ids.add(template['id'])
+
 	startTime = time.perf_counter()
 
 	numFlairs = 0
-	flair_map = []
+	flair_map_old = []
+	flair_map_new = []
 	for flair in sub.flair(limit=None):
 		numFlairs += 1
 
@@ -154,15 +155,30 @@ try:
 					 flair['flair_text'],
 					 item['flair_css_class'],
 					 item['flair_text'])
-			flair_map.append(item)
+			if item['flair_css_class'] in template_ids:
+				flair_map_new.append(item)
+			else:
+				flair_map_old.append(item)
 		else:
 			log.debug("/u/%s unchanged from '%s|%s'", flair['user'].name, flair['flair_css_class'], flair['flair_text'])
 
 	log.info("Found %d flairs in %d seconds", numFlairs, int(time.perf_counter() - startTime))
-	startTime = time.perf_counter()
-	log.info("Updating %d flairs. Running update function, this could take a while.", len(flair_map))
-	sub.flair.update(flair_map)
-	log.info("Done in %d seconds", int(time.perf_counter() - startTime))
+	if len(flair_map_old):
+		startTime = time.perf_counter()
+		log.info("Updating %d flairs with bulk updater. This could take a while.", len(flair_map_old))
+		sub.flair.update(flair_map_old)
+		log.info("Done in %d seconds", int(time.perf_counter() - startTime))
+	if len(flair_map_new):
+		startTime = time.perf_counter()
+		log.info("Updating %d flairs with single updater. This takes approximately one second per flair.", len(flair_map_new))
+		for flair in flair_map_new:
+			sub.flair.set(
+				redditor=flair['user'],
+				text=flair['flair_text'],
+				flair_template_id=flair['flair_css_class']
+			)
+		log.info("Done in %d seconds", int(time.perf_counter() - startTime))
+
 except Exception as err:
 	log.warning("Hit an error in main loop")
 	log.warning(traceback.format_exc())
