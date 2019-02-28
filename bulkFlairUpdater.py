@@ -39,7 +39,7 @@ flair_text_mapping = {
 # if either the css or text keys are not included in the result, it doesn't change that
 # if this is enabled and a users flair matches something here, it will override the settings above
 # turn it on by changing the False on the next line to True
-flair_css_text_mapping_enabled = True
+flair_css_text_mapping_enabled = False
 flair_css_text_mapping = {
 	'oldCss1': {
 		'oldText1': {'css': 'newCss1', 'text': 'newText1'},
