@@ -36,6 +36,7 @@ flair_text_mapping = {
 }
 
 # use this section to change combinations of css class and text into a different css class and text
+# if either the css or text keys are not included in the result, it doesn't change that
 # if this is enabled and a users flair matches something here, it will override the settings above
 # turn it on by changing the False on the next line to True
 flair_css_text_mapping_enabled = True
