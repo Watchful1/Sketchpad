@@ -13,7 +13,7 @@ USER_AGENT = "Bulk flair updater (by /u/Watchful1)"
 REDDIT_OWNER = "Watchful1"
 LOG_LEVEL = logging.INFO
 
-SUBREDDIT = "sports"
+SUBREDDIT = "SubTestBot1"
 USERNAME = ""
 PASSWORD = ""
 CLIENT_ID = ""
@@ -38,15 +38,15 @@ flair_text_mapping = {
 # use this section to change combinations of css class and text into a different css class and text
 # if this is enabled and a users flair matches something here, it will override the settings above
 # turn it on by changing the False on the next line to True
-flair_css_text_mapping_enabled = False
+flair_css_text_mapping_enabled = True
 flair_css_text_mapping = {
 	'oldCss1': {
 		'oldText1': {'css': 'newCss1', 'text': 'newText1'},
-		'oldText2': {'css': 'newCss2', 'text': 'newText2'},
+		'oldText2': {'css': 'newCss2'},
 	},
 	'oldCss3': {
 		'oldText3': {'css': 'newCss3', 'text': 'newText3'},
-		'oldText4': {'css': 'newCss4', 'text': 'newText4'},
+		'oldText4': {'text': 'newText4'},
 	},
 }
 
@@ -125,22 +125,25 @@ try:
 			'flair_css_class': flair['flair_css_class'],
 		}
 		updated = False
+
+		if flair_css_mapping_enabled:
+			if flair['flair_css_class'] in flair_css_mapping:
+				item['flair_css_class'] = flair_css_mapping[flair['flair_css_class']]
+				updated = True
+
 		if flair_text_mapping_enabled:
 			if flair['flair_text'] in flair_text_mapping:
 				item['flair_text'] = flair_text_mapping[flair['flair_text']]
-				updated = True
-
-		if flair_css_mapping_enabled:
-			if flair['flair_css_class'] in flair_text_mapping:
-				item['flair_css_class'] = flair_text_mapping[flair['flair_css_class']]
 				updated = True
 
 		if flair_css_text_mapping_enabled:
 			if flair['flair_css_class'] in flair_css_text_mapping and \
 					flair['flair_text'] in flair_css_text_mapping[flair['flair_css_class']]:
 				result = flair_css_text_mapping[flair['flair_css_class']][flair['flair_text']]
-				item['flair_css_class'] = result['css']
-				item['flair_text'] = result['text']
+				if 'css' in result:
+					item['flair_css_class'] = result['css']
+				if 'text' in result:
+					item['flair_text'] = result['text']
 				updated = True
 
 		if updated:
