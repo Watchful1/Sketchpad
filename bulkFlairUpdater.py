@@ -23,7 +23,7 @@ CLIENT_SECRET = ""
 # turn it on by changing the False on the next line to True
 flair_css_mapping_enabled = True
 flair_css_mapping = {
-	'oldCss1': '115a74ba-3b0d-11e9-b19b-0e3ca9f56e6a',
+	'oldCss1': 'newCss1',
 	'oldCss2': 'newCss2',
 }
 
