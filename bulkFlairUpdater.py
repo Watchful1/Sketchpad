@@ -165,7 +165,7 @@ try:
 		else:
 			log.debug("/u/%s unchanged from '%s|%s'", flair['user'].name, flair['flair_css_class'], flair['flair_text'])
 
-	log.info("Found %d flairs in %d seconds", numFlairs, int(time.perf_counter() - startTime))
+	log.info("Processed %d flairs in %d seconds", numFlairs, int(time.perf_counter() - startTime))
 	log.info("Found %d flairs that can be bulk updated and %d flairs that have to be single updated", len(flair_map_old), len(flair_map_new))
 	if DEBUG:
 		log.info("Debug mode enabled, not updating and flairs")
