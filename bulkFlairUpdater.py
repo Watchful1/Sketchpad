@@ -18,6 +18,9 @@ USERNAME = ""
 PASSWORD = ""
 CLIENT_ID = ""
 CLIENT_SECRET = ""
+# By default, this script just lists out the changes it would do, but doesn't actually do them
+# Change this is false to actually run the changes
+DEBUG = True
 
 # use this section to switch every flair of one css class to a new css class, leaving the text alone
 # turn it on by changing the False on the next line to True
@@ -163,21 +166,24 @@ try:
 			log.debug("/u/%s unchanged from '%s|%s'", flair['user'].name, flair['flair_css_class'], flair['flair_text'])
 
 	log.info("Found %d flairs in %d seconds", numFlairs, int(time.perf_counter() - startTime))
-	if len(flair_map_old):
-		startTime = time.perf_counter()
-		log.info("Updating %d flairs with bulk updater. This could take a while.", len(flair_map_old))
-		sub.flair.update(flair_map_old)
-		log.info("Done in %d seconds", int(time.perf_counter() - startTime))
-	if len(flair_map_new):
-		startTime = time.perf_counter()
-		log.info("Updating %d flairs with single updater. This takes approximately one second per flair.", len(flair_map_new))
-		for flair in flair_map_new:
-			sub.flair.set(
-				redditor=flair['user'],
-				text=flair['flair_text'],
-				flair_template_id=flair['flair_css_class']
-			)
-		log.info("Done in %d seconds", int(time.perf_counter() - startTime))
+	if DEBUG:
+		log.info("Debug mode enabled, not updating and flairs")
+	else:
+		if len(flair_map_old):
+			startTime = time.perf_counter()
+			log.info("Updating %d flairs with bulk updater. This could take a while.", len(flair_map_old))
+			sub.flair.update(flair_map_old)
+			log.info("Done in %d seconds", int(time.perf_counter() - startTime))
+		if len(flair_map_new):
+			startTime = time.perf_counter()
+			log.info("Updating %d flairs with single updater. This takes approximately one second per flair.", len(flair_map_new))
+			for flair in flair_map_new:
+				sub.flair.set(
+					redditor=flair['user'],
+					text=flair['flair_text'],
+					flair_template_id=flair['flair_css_class']
+				)
+			log.info("Done in %d seconds", int(time.perf_counter() - startTime))
 
 except Exception as err:
 	log.warning("Hit an error in main loop")
