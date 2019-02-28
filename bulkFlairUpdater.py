@@ -9,20 +9,45 @@ import signal
 import time
 import traceback
 
-SUBREDDIT = "sports"
 USER_AGENT = "Bulk flair updater (by /u/Watchful1)"
 REDDIT_OWNER = "Watchful1"
 LOG_LEVEL = logging.INFO
 
+SUBREDDIT = "sports"
 USERNAME = ""
 PASSWORD = ""
 CLIENT_ID = ""
 CLIENT_SECRET = ""
 
-flair_config = {
-	'oldCSS1': 'newFlair1',
-	'oldCSS2': 'newFlair2',
-	'oldCSS3': 'newFlair3',
+# use this section to switch every flair of one css class to a new css class, leaving the text alone
+# turn it on by changing the False on the next line to True
+flair_css_mapping_enabled = False
+flair_css_mapping = {
+	'oldCss1': 'newCss1',
+	'oldCss2': 'newCss2',
+}
+
+# use this section to change all flair with one text to a new text, leaving the text alone
+# turn it on by changing the False on the next line to True
+flair_text_mapping_enabled = False
+flair_text_mapping = {
+	'oldText1': 'newText1',
+	'oldText2': 'newText2',
+}
+
+# use this section to change combinations of css class and text into a different css class and text
+# if this is enabled and a users flair matches something here, it will override the settings above
+# turn it on by changing the False on the next line to True
+flair_css_text_mapping_enabled = False
+flair_css_text_mapping = {
+	'oldCss1': {
+		'oldText1': {'css': 'newCss1', 'text': 'newText1'},
+		'oldText2': {'css': 'newCss2', 'text': 'newText2'},
+	},
+	'oldCss3': {
+		'oldText3': {'css': 'newCss3', 'text': 'newText3'},
+		'oldText4': {'css': 'newCss4', 'text': 'newText4'},
+	},
 }
 
 LOG_FOLDER_NAME = "logs"
@@ -44,6 +69,11 @@ if LOG_FILENAME is not None:
 	                                                       backupCount=LOG_FILE_BACKUPCOUNT)
 	log_fileHandler.setFormatter(log_formatter)
 	log.addHandler(log_fileHandler)
+
+
+if (flair_css_mapping_enabled or flair_text_mapping_enabled) and flair_css_text_mapping_enabled:
+	log.warning("Warning, you can't use the css_text section at the same time as the other two")
+	sys.exit()
 
 
 debug = False
@@ -89,15 +119,40 @@ try:
 	for flair in sub.flair(limit=None):
 		numFlairs += 1
 
-		if flair['flair_css_class'] in flair_config:
-			item = {
-				'user': flair['user'].name,
-				'flair_text': flair_config[flair['flair_css_class']]
-			}
+		item = {
+			'user': flair['user'].name,
+			'flair_text': flair['flair_text'],
+			'flair_css_class': flair['flair_css_class'],
+		}
+		updated = False
+		if flair_text_mapping_enabled:
+			if flair['flair_text'] in flair_text_mapping:
+				item['flair_text'] = flair_text_mapping[flair['flair_text']]
+				updated = True
+
+		if flair_css_mapping_enabled:
+			if flair['flair_css_class'] in flair_text_mapping:
+				item['flair_css_class'] = flair_text_mapping[flair['flair_css_class']]
+				updated = True
+
+		if flair_css_text_mapping_enabled:
+			if flair['flair_css_class'] in flair_css_text_mapping and \
+					flair['flair_text'] in flair_css_text_mapping[flair['flair_css_class']]:
+				result = flair_css_text_mapping[flair['flair_css_class']][flair['flair_text']]
+				item['flair_css_class'] = result['css']
+				item['flair_text'] = result['text']
+				updated = True
+
+		if updated:
+			log.info("/u/%s from '%s|%s' to '%s|%s'",
+					 flair['user'].name,
+					 flair['flair_css_class'],
+					 flair['flair_text'],
+					 item['flair_css_class'],
+					 item['flair_text'])
 			flair_map.append(item)
-			log.info("/u/%s from '%s' to '%s'", flair['user'].name, flair['flair_css_class'], flair_config[flair['flair_css_class']])
 		else:
-			log.debug("/u/%s unchanged from '%s'", flair['user'].name, flair['flair_css_class'])
+			log.debug("/u/%s unchanged from '%s|%s'", flair['user'].name, flair['flair_css_class'], flair['flair_text'])
 
 	log.info("Found %d flairs in %d seconds", numFlairs, int(time.perf_counter() - startTime))
 	startTime = time.perf_counter()
