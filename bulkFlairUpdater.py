@@ -21,7 +21,7 @@ CLIENT_SECRET = ""
 
 # use this section to switch every flair of one css class to a new css class, leaving the text alone
 # turn it on by changing the False on the next line to True
-flair_css_mapping_enabled = True
+flair_css_mapping_enabled = False
 flair_css_mapping = {
 	'oldCss1': 'newCss1',
 	'oldCss2': 'newCss2',
