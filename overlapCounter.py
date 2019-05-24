@@ -1,13 +1,16 @@
 import requests
 from collections import defaultdict
 from datetime import datetime
+from datetime import timedelta
 
-firstSubreddit = 'redditdev'
-secondSubreddit = 'requestabot'
+subreddits = ['singapore', 'Marvel', 'indonesia']
+lookback_days = 365
 
 url = "https://api.pushshift.io/reddit/comment/search?&limit=1000&sort=desc&subreddit={}&before="
 
 startTime = datetime.utcnow()
+endTime = startTime - timedelta(days=lookback_days)
+endEpoch = int(endTime.timestamp())
 
 
 def countCommenters(subreddit):
@@ -15,6 +18,7 @@ def countCommenters(subreddit):
 	commenters = defaultdict(int)
 	previousEpoch = int(startTime.timestamp())
 	print(f"Counting commenters in: {subreddit}")
+	breakOut = False
 	while True:
 		newUrl = url.format(subreddit)+str(previousEpoch)
 		json = requests.get(newUrl, headers={'User-Agent': "Overlap counter by /u/Watchful1"})
@@ -25,28 +29,39 @@ def countCommenters(subreddit):
 			previousEpoch = object['created_utc'] - 1
 			commenters[object['author']] += 1
 			count += 1
-		print("Comments: {}, {}".format(count, datetime.fromtimestamp(previousEpoch).strftime("%Y-%m-%d")))
+			if count % 10000 == 0:
+				print("r/{} comments: {}, {}".format(subreddit, count, datetime.fromtimestamp(previousEpoch).strftime("%Y-%m-%d")))
+			if previousEpoch < endEpoch:
+				breakOut = True
+				break
+		if breakOut:
+			break
 	print(f"Comments: {count}, commenters: {len(commenters)}")
-	return commenters, count
+	return commenters
 
 
-firstSubredditCommenters, firstSubredditCommentCount = countCommenters(firstSubreddit)
-secondSubredditCommenters, secondSubredditCommentCount = countCommenters(secondSubreddit)
-
-print("Comparing commenter lists")
-overlapCommenters = set()
 totalCommenters = set()
-for commenter in firstSubredditCommenters:
-	totalCommenters.add(commenter)
-	if commenter in secondSubredditCommenters:
-		overlapCommenters.add(commenter)
-for commenter in secondSubredditCommenters:
-	if commenter not in totalCommenters:
-		totalCommenters.add(commenter)
+overlapCommenters = set()
+for subreddit in subreddits:
+	commenters = countCommenters(subreddit)
 
-print(f"{len(overlapCommenters)} of {len(totalCommenters)} total commenters commented in both subreddits, that's {round((len(overlapCommenters) / len(totalCommenters)) * 100, 2)} percent")
-print(f"{firstSubreddit} has {len(firstSubredditCommenters)} commenters, {round((len(overlapCommenters) / len(firstSubredditCommenters)) * 100, 2)} percent commented in {secondSubreddit}")
-print(f"{secondSubreddit} has {len(secondSubredditCommenters)} commenters, {round((len(overlapCommenters) / len(secondSubredditCommenters)) * 100, 2)} percent commented in {firstSubreddit}")
+	if not len(overlapCommenters):
+		print("Building first")
+		for commenter in commenters:
+			overlapCommenters.add(commenter)
+			totalCommenters.add(commenter)
+	else:
+		print(f"Building, current size: {len(overlapCommenters)}")
+		newOverlap = set()
+		for commenter in commenters:
+			totalCommenters.add(commenter)
+			if commenter in overlapCommenters:
+				newOverlap.add(commenter)
+		overlapCommenters = newOverlap
+		print(f"Done, new size: {len(overlapCommenters)}")
+
+
+print(f"{len(overlapCommenters)} of {len(totalCommenters)} total commenters commented in all subreddits, that's {round((len(overlapCommenters) / len(totalCommenters)) * 100, 2)} percent")
 
 with open("users.txt", 'w') as txt:
 	for user in overlapCommenters:
