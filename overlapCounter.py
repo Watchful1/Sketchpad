@@ -3,8 +3,8 @@ from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
 
-subreddits = ['singapore', 'Marvel', 'indonesia']
-lookback_days = 365
+subreddits = ['McMaster', 'comedyheaven', 'me_irl', 'FortniteBR']
+lookback_days = 120
 
 url = "https://api.pushshift.io/reddit/comment/search?&limit=1000&sort=desc&subreddit={}&before="
 
