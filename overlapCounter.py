@@ -3,20 +3,22 @@ from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
 
-subreddits = ['McMaster', 'comedyheaven', 'me_irl', 'FortniteBR']
-lookback_days = 120
+subreddits = ['JerkOffToCelebs', 'celebs']
+lookback_days = 180
 
 url = "https://api.pushshift.io/reddit/comment/search?&limit=1000&sort=desc&subreddit={}&before="
 
 startTime = datetime.utcnow()
+startEpoch = int(startTime.timestamp())
 endTime = startTime - timedelta(days=lookback_days)
 endEpoch = int(endTime.timestamp())
+totalSeconds = startEpoch - endEpoch
 
 
 def countCommenters(subreddit):
 	count = 0
 	commenters = defaultdict(int)
-	previousEpoch = int(startTime.timestamp())
+	previousEpoch = startEpoch
 	print(f"Counting commenters in: {subreddit}")
 	breakOut = False
 	while True:
@@ -30,7 +32,11 @@ def countCommenters(subreddit):
 			commenters[object['author']] += 1
 			count += 1
 			if count % 10000 == 0:
-				print("r/{} comments: {}, {}".format(subreddit, count, datetime.fromtimestamp(previousEpoch).strftime("%Y-%m-%d")))
+				print("r/{0} comments: {1}, {2}, {3:.2f}%".format(
+					subreddit,
+					count,
+					datetime.fromtimestamp(previousEpoch).strftime("%Y-%m-%d"),
+					((startEpoch - previousEpoch) / totalSeconds) * 100))
 			if previousEpoch < endEpoch:
 				breakOut = True
 				break
