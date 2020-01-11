@@ -3,8 +3,13 @@ from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
 
-subreddits = ['JerkOffToCelebs', 'celebs']
+subreddits = ['redditdev', 'requestabot', 'botwatch']
+ignored_users = ['[deleted]', 'automoderator']
 lookback_days = 180
+min_comments_per_sub = 1
+file_name = "users.txt"
+# either author, comments or leave it empty
+sort_by = ""
 
 url = "https://api.pushshift.io/reddit/comment/search?&limit=1000&sort=desc&subreddit={}&before="
 
@@ -29,7 +34,8 @@ def countCommenters(subreddit):
 			break
 		for object in objects:
 			previousEpoch = object['created_utc'] - 1
-			commenters[object['author']] += 1
+			if object['author'] not in ignored_users:
+				commenters[object['author']] += 1
 			count += 1
 			if count % 10000 == 0:
 				print("r/{0} comments: {1}, {2}, {3:.2f}%".format(
@@ -46,30 +52,42 @@ def countCommenters(subreddit):
 	return commenters
 
 
-totalCommenters = set()
-overlapCommenters = set()
+totalCommenters = defaultdict(int)
+overlapCommenters = defaultdict(int)
 for subreddit in subreddits:
 	commenters = countCommenters(subreddit)
 
 	if not len(overlapCommenters):
 		print("Building first")
 		for commenter in commenters:
-			overlapCommenters.add(commenter)
-			totalCommenters.add(commenter)
+			if commenters[commenter] >= min_comments_per_sub:
+				overlapCommenters[commenter] += commenters[commenter]
+				totalCommenters[commenter] += commenters[commenter]
+		print(f"Done, size: {len(overlapCommenters)}")
 	else:
 		print(f"Building, current size: {len(overlapCommenters)}")
-		newOverlap = set()
+		newOverlap = defaultdict(int)
 		for commenter in commenters:
-			totalCommenters.add(commenter)
-			if commenter in overlapCommenters:
-				newOverlap.add(commenter)
+			if commenters[commenter] >= min_comments_per_sub:
+				totalCommenters[commenter] += commenters[commenter]
+				if commenter in overlapCommenters:
+					newOverlap[commenter] += commenters[commenter]
 		overlapCommenters = newOverlap
-		print(f"Done, new size: {len(overlapCommenters)}")
+		print(f"Done, new size: {len(overlapCommenters)}, total commenters: {len(totalCommenters)}")
 
 
 print(f"{len(overlapCommenters)} of {len(totalCommenters)} total commenters commented in all subreddits, that's {round((len(overlapCommenters) / len(totalCommenters)) * 100, 2)} percent")
 
-with open("users.txt", 'w') as txt:
-	for user in overlapCommenters:
-		txt.write(user)
-		txt.write("\n")
+with open(file_name, 'w') as txt:
+	if sort_by == 'author':
+		print(f"Printing to {file_name} sorted by author")
+		for user in sorted(overlapCommenters.keys(), key=str.lower):
+			txt.write(f"{user}: {overlapCommenters[user]}\n")
+	elif sort_by == 'comments':
+		print(f"Printing to {file_name} sorted by number of comments")
+		for user, comments in sorted(overlapCommenters.items(), key=lambda item: item[1], reverse=True):
+			txt.write(f"{user}: {comments}\n")
+	else:
+		print(f"Printing to {file_name} unsorted")
+		for user in overlapCommenters:
+			txt.write(f"{user}: {overlapCommenters[user]}\n")
