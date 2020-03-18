@@ -51,6 +51,8 @@ with open(csv_filename, 'w') as csv_file:
 		for notes in parsed[username]["ns"]:
 			note_count += 1
 			note = notes["n"]
+			if "," in note:
+				note = f"\"{note}\""
 
 			link = ''
 			link_raw = notes["l"]

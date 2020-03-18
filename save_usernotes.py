@@ -70,6 +70,8 @@ with open(csv_filename, 'r') as csv_file:
 		else:
 			link = ""
 		note_text = items[5]
+		if note_text.startswith("\""):
+			note_text = ','.join(items[5:])[1:-1]
 
 		note = {
 			'n': note_text,
