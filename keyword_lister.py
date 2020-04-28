@@ -11,7 +11,6 @@ endEpoch = int((datetime.utcnow() - timedelta(days=days_to_search)).timestamp())
 breakOut = False
 output_file = open("output.txt", 'w')
 while True:
-	url = url.format(subreddit, keyword, str(previousEpoch))
 	comments = requests.get(url.format(subreddit, keyword, str(previousEpoch)), headers={'User-Agent': "keyword counter"}).json()['data']
 	if len(comments) == 0:
 		break
