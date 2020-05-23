@@ -1,8 +1,9 @@
 import requests
 from datetime import datetime
 import traceback
+import time
 
-username = "goodnewsjimdotcom"
+username = "Siriachung"
 
 url = "https://api.pushshift.io/reddit/{}/search?limit=1000&sort=desc&author={}&before="
 
@@ -18,6 +19,7 @@ def downloadFromUrl(filename, object_type):
 	while True:
 		new_url = url.format(object_type, username)+str(previous_epoch)
 		json = requests.get(new_url, headers={'User-Agent': "Post downloader by /u/Watchful1"})
+		time.sleep(1) # pushshift has a rate limit, if we send requests too fast it will start returning error messages
 		json_data = json.json()
 		if 'data' not in json_data:
 			break

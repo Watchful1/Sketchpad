@@ -2,6 +2,7 @@ import requests
 from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
+import time
 
 subreddits = ['redditdev', 'requestabot', 'botwatch']
 ignored_users = ['[deleted]', 'automoderator']
@@ -29,6 +30,7 @@ def countCommenters(subreddit):
 	while True:
 		newUrl = url.format(subreddit)+str(previousEpoch)
 		json = requests.get(newUrl, headers={'User-Agent': "Overlap counter by /u/Watchful1"})
+		time.sleep(1)  # pushshift is ratelimited. If we go too fast we'll get errors
 		objects = json.json()['data']
 		if len(objects) == 0:
 			break
