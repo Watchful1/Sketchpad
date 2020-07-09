@@ -26,6 +26,8 @@ thread_id = "hl30ln"
 reddit = praw.Reddit("Watchful1BotTest")
 
 submission = reddit.submission(thread_id)
+# count the number of API requests we've made
+count_requests = 1
 
 # get the initial MoreComments list
 more_comments = gather_more_comments(submission)
@@ -36,6 +38,8 @@ while more_comments:
 
 	# call the fetch method to get all the comments from the API
 	new_comments = more_comment.comments(update=False)
+
+	count_requests += 1
 
 	# insert all new comments into the tree
 	for comment in new_comments:
@@ -52,4 +56,4 @@ while more_comments:
 	# iterate through the top level tree again to find the new MoreComments object
 	more_comments = gather_more_comments(submission)
 
-print("Done")
+print(f"Done in {count_requests} requests")
