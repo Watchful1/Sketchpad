@@ -1,0 +1,14 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+praw = "*"
+numpy = "==1.19.3"
+pandas = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.8"
