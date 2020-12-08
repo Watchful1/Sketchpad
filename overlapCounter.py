@@ -52,7 +52,7 @@ def countCommenters(subreddit):
 			if object['author'] not in ignored_users:
 				commenters[object['author']] += 1
 			count += 1
-			if count % 10000 == 0:
+			if count % 1000 == 0:
 				print("r/{0} comments: {1}, {2}, {3:.2f}%".format(
 					subreddit,
 					count,
