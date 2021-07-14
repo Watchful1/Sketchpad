@@ -8,6 +8,7 @@ praw = "*"
 numpy = "==1.19.3"
 pandas = "*"
 psaw = "*"
+moviepy = "*"
 
 [dev-packages]
 
