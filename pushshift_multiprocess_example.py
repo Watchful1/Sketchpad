@@ -52,7 +52,7 @@ OUTPUT_FILE_NAME = ""
 
 # takes in a single line object and returns true if it should be saved
 def save_obj(obj):
-	return obj['subreddit'] == "redditdev"
+	return obj['subreddit'] == "wallstreetbets"
 
 
 # convenience object used to pass status information between processes
@@ -171,6 +171,8 @@ if __name__ == '__main__':
 	assert output_folder is not None and output_folder != ""
 	output_file_name = sys.argv[3] if OUTPUT_FILE_NAME == "" and len(sys.argv) >= 4 else OUTPUT_FILE_NAME
 	assert output_file_name is not None and output_file_name != ""
+	count_processes = sys.argv[4] if COUNT_PROCESSES == None and len(sys.argv) >= 5 else COUNT_PROCESSES
+	assert count_processes is not None and count_processes != ""
 
 	log.info(f"Loading files from: {input_folder}")
 	log.info(f"Writing output to: {(os.path.join(output_folder, output_file_name + '.txt'))}")
@@ -213,7 +215,7 @@ if __name__ == '__main__':
 		progress_queue.put([start_time, total_lines_processed, total_bytes_processed])
 		speed_queue = Queue(20)
 		# start the workers
-		with multiprocessing.Pool(processes=COUNT_PROCESSES) as pool:
+		with multiprocessing.Pool(processes=count_processes) as pool:
 			workers = pool.starmap_async(process_file, [(file, working_folder, queue) for file in files_to_process], error_callback=log.info)
 			while not workers.ready():
 				# loop until the workers are all done, pulling in status messages as they are sent
