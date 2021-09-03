@@ -151,7 +151,7 @@ def process_file(file, working_folder, queue):
 			output_file.write(line)
 			output_file.write("\n")
 		file.lines_processed += 1
-		if file.lines_processed % 100000 == 0:
+		if file.lines_processed % 1000000 == 0:
 			file.bytes_processed = file_bytes_processed
 			queue.put(file)
 
