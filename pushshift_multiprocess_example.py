@@ -211,7 +211,7 @@ if __name__ == '__main__':
 
 	start_time = time.time()
 	if len(files_to_process):
-		progress_queue = Queue(100)
+		progress_queue = Queue(20)
 		progress_queue.put([start_time, total_lines_processed, total_bytes_processed])
 		speed_queue = Queue(20)
 		# start the workers
@@ -251,18 +251,25 @@ if __name__ == '__main__':
 					f"{total_lines_processed:,} lines at {(total_lines_processed - first_lines)/(current_time - first_time):,.0f}/s : "
 					f"{(total_bytes_processed / (2**30)):.2f} gb at {(bytes_per_second / (2**20)):,.0f} mb/s, {(total_bytes_processed / total_bytes) * 100:.0f}% : "
 					f"{files_processed}/{len(input_files)} files : "
-					f"{(str(days_left) + 'd ' if days_left > 0 else '')}{hours_left - (days_left * 24)}:{minutes_left - (hours_left * 60)}:{seconds_left - (minutes_left * 60)} remaining")
+					f"{(str(days_left) + 'd ' if days_left > 0 else '')}{hours_left - (days_left * 24)}:{minutes_left - (hours_left * 60):02}:{seconds_left - (minutes_left * 60):02} remaining")
 
 	log.info(f"{total_lines_processed:,} : {(total_bytes_processed / (2**30)):.2f} gb, {(total_bytes_processed / total_bytes) * 100:.0f}% : {files_processed}/{len(input_files)}")
 
 	working_file_paths = []
+	count_incomplete = 0
 	# build a list of output files to combine
 	for file in input_files:
+		if not file.complete:
+			count_incomplete += 1
 		if file.output_path is not None:
 			if not os.path.exists(file.output_path):
 				log.info(f"Output file {file.output_path} doesn't exist")
 			else:
 				working_file_paths.append(file.output_path)
+
+	if count_incomplete > 0:
+		log.info(f"{count_incomplete} files were not completed, something went wrong. Aborting")
+		sys.exit()
 
 	log.info(f"Processing complete, combining {len(working_file_paths)} result files")
 
