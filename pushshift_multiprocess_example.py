@@ -3,6 +3,7 @@ import os
 import json
 import sys
 import time
+import argparse
 from datetime import datetime
 import logging.handlers
 import multiprocessing
@@ -10,7 +11,7 @@ import multiprocessing
 
 # sets up logging to the console as well as a file
 log = logging.getLogger("bot")
-log.setLevel(logging.DEBUG)
+log.setLevel(logging.INFO)
 log_formatter = logging.Formatter('%(asctime)s - %(levelname)s: %(message)s')
 
 log_stderr_handler = logging.StreamHandler()
@@ -40,21 +41,6 @@ log.addHandler(log_file_handler)
 #    - detailed progress indicators
 
 
-# number of parallel processes to use
-COUNT_PROCESSES = 10
-# full path to input folder
-INPUT_FOLDER = ""
-# full path to output folder
-OUTPUT_FOLDER = ""
-# name of output and working folders, used to distinguish separate runs
-OUTPUT_FILE_NAME = ""
-
-
-# takes in a single line object and returns true if it should be saved
-def save_obj(obj):
-	return obj['subreddit'] == "wallstreetbets"
-
-
 # convenience object used to pass status information between processes
 class FileConfig:
 	def __init__(self, input_path, output_path=None, complete=False, lines_processed=0):
@@ -64,6 +50,9 @@ class FileConfig:
 		self.complete = complete
 		self.bytes_processed = self.file_size if complete else 0
 		self.lines_processed = lines_processed if complete else 0
+
+	def __str__(self):
+		return f"{self.input_path} : {self.output_path} : {self.file_size} : {self.complete} : {self.bytes_processed} : {self.lines_processed}"
 
 
 # used for calculating running average of read speed
@@ -138,11 +127,12 @@ def read_lines_zst(file_name):
 
 # base of each separate process. Loads a file, iterates through lines and writes out
 # the ones where save_obj() returns true. Also passes status information back to the parent via a queue
-def process_file(file, working_folder, queue):
+def process_file(file, working_folder, queue, field, value):
 	output_file = None
 	for line, file_bytes_processed in read_lines_zst(file.input_path):
 		obj = json.loads(line)
-		if save_obj(obj):
+
+		if obj[field] == value:
 			if output_file is None:
 				if file.output_path is None:
 					created = datetime.utcfromtimestamp(int(obj['created_utc']))
@@ -164,33 +154,36 @@ def process_file(file, working_folder, queue):
 
 
 if __name__ == '__main__':
-	# overwrite the config variables with passed in arguments
-	input_folder = sys.argv[1] if INPUT_FOLDER == "" and len(sys.argv) >= 2 else INPUT_FOLDER
-	assert input_folder is not None and input_folder != ""
-	output_folder = sys.argv[2] if OUTPUT_FOLDER == "" and len(sys.argv) >= 3 else OUTPUT_FOLDER
-	assert output_folder is not None and output_folder != ""
-	output_file_name = sys.argv[3] if OUTPUT_FILE_NAME == "" and len(sys.argv) >= 4 else OUTPUT_FILE_NAME
-	assert output_file_name is not None and output_file_name != ""
-	count_processes = sys.argv[4] if COUNT_PROCESSES == None and len(sys.argv) >= 5 else COUNT_PROCESSES
-	assert count_processes is not None and count_processes != ""
+	parser = argparse.ArgumentParser(description="Use multiple processes to decompress and iterate over pushshift dump files")
+	parser.add_argument("input", help="The input folder to read files from")
+	parser.add_argument("output", help="The output folder to store temporary files in and write the output to")
+	parser.add_argument("--name", help="What to name the output file", default="pushshift")
+	parser.add_argument("--processes", help="Number of processes to use", default=10, type=int)
+	parser.add_argument("--debug", help="Enable debug logging", action='store_const', const=True, default=False)
+	parser.add_argument("--field", help="When deciding what lines to keep, use this field for comparisons", default="subreddit")
+	parser.add_argument("--value", help="When deciding what lines to keep, compare the field to this value", default="pushshift")
+	args = parser.parse_args()
 
-	log.info(f"Loading files from: {input_folder}")
-	log.info(f"Writing output to: {(os.path.join(output_folder, output_file_name + '.txt'))}")
+	if args.debug:
+		log.setLevel(logging.DEBUG)
+
+	log.info(f"Loading files from: {args.input}")
+	log.info(f"Writing output to: {(os.path.join(args.output, args.name + '.txt'))}")
 
 	multiprocessing.set_start_method('spawn')
 	queue = multiprocessing.Manager().Queue()
-	input_files = load_file_list(output_folder, output_file_name)
-	working_folder, _ = folder_helper(output_folder, output_file_name)
+	input_files = load_file_list(args.output, args.name)
+	working_folder, _ = folder_helper(args.output, args.name)
 	# if the file list wasn't loaded from the json, this is the first run, find what files we need to process
 	if input_files is None:
 		input_files = []
-		for subdir, dirs, files in os.walk(input_folder):
+		for subdir, dirs, files in os.walk(args.input):
 			for file_name in files:
 				if file_name.endswith(".zst"):
 					input_path = os.path.join(subdir, file_name)
 					input_files.append(FileConfig(input_path))
 
-		save_file_list(input_files, output_folder, output_file_name)
+		save_file_list(input_files, args.output, args.name)
 
 	files_processed = 0
 	total_bytes = 0
@@ -211,15 +204,16 @@ if __name__ == '__main__':
 
 	start_time = time.time()
 	if len(files_to_process):
-		progress_queue = Queue(20)
+		progress_queue = Queue(40)
 		progress_queue.put([start_time, total_lines_processed, total_bytes_processed])
-		speed_queue = Queue(20)
+		speed_queue = Queue(40)
 		# start the workers
-		with multiprocessing.Pool(processes=count_processes) as pool:
-			workers = pool.starmap_async(process_file, [(file, working_folder, queue) for file in files_to_process], error_callback=log.info)
+		with multiprocessing.Pool(processes=args.processes) as pool:
+			workers = pool.starmap_async(process_file, [(file, working_folder, queue, args.field, args.value) for file in files_to_process], error_callback=log.info)
 			while not workers.ready():
 				# loop until the workers are all done, pulling in status messages as they are sent
 				file_update = queue.get()
+				log.debug(str(file_update))
 				# I'm going to assume that the list of files is short enough that it's no
 				# big deal to just iterate each time since that saves a bunch of work
 				total_lines_processed = 0
@@ -235,7 +229,7 @@ if __name__ == '__main__':
 					files_processed += 1 if file.complete else 0
 					i += 1
 				if file_update.complete:
-					save_file_list(input_files, output_folder, output_file_name)
+					save_file_list(input_files, args.output, args.name)
 				current_time = time.time()
 				progress_queue.put([current_time, total_lines_processed, total_bytes_processed])
 
@@ -274,7 +268,7 @@ if __name__ == '__main__':
 	log.info(f"Processing complete, combining {len(working_file_paths)} result files")
 
 	output_lines = 0
-	output_file_path = os.path.join(output_folder, output_file_name + ".txt")
+	output_file_path = os.path.join(args.output, args.name + ".txt")
 	# combine all the output files into the final results file
 	with open(output_file_path, 'w') as output_file:
 		i = 0
