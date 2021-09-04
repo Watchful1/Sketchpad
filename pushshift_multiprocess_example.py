@@ -129,6 +129,7 @@ def read_lines_zst(file_name):
 # the ones where save_obj() returns true. Also passes status information back to the parent via a queue
 def process_file(file, working_folder, queue, field, value):
 	output_file = None
+	log.debug(f"Starting file: {file.input_path}")
 	for line, file_bytes_processed in read_lines_zst(file.input_path):
 		obj = json.loads(line)
 
@@ -150,6 +151,7 @@ def process_file(file, working_folder, queue, field, value):
 
 	file.complete = True
 	file.bytes_processed = file.file_size
+	log.debug(f"Finished file: {file.input_path}")
 	queue.put(file)
 
 
