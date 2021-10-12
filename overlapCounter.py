@@ -1,17 +1,15 @@
 import requests
 from collections import defaultdict
-from datetime import datetime
-from datetime import timedelta
+from datetime import datetime, timedelta
 import time
+import os
 import json
 
-subreddits = ['redditdev', 'requestabot', 'botwatch']
+subreddits = ['Scottishpeopletwitter','Britishproblems','Purplepilldebate','Sinkpissers','Boneappletea','Whereareallthegoodmen']
 ignored_users = ['[deleted]', 'automoderator']
 lookback_days = 180
 min_comments_per_sub = 1
 file_name = "users.txt"
-# either author, comments or leave it empty
-sort_by = ""
 
 url = "https://api.pushshift.io/reddit/comment/search?&limit=1000&sort=desc&subreddit={}&before="
 
@@ -22,12 +20,57 @@ endEpoch = int(endTime.timestamp())
 totalSeconds = startEpoch - endEpoch
 
 
+if not os.path.exists("overlap_subreddits"):
+	os.makedirs("overlap_subreddits")
+
+
+def loadSubredditCommenters(subreddit):
+	for filename in os.listdir("overlap_subreddits"):
+		if filename.endswith(".txt") and filename.startswith(subreddit):
+			count_comments = 0
+			with open(os.path.join("overlap_subreddits", filename), 'r') as inputFile:
+				commenters = defaultdict(int)
+				for line in inputFile:
+					items = line.split("	")
+					if len(items) != 2:
+						print(f"Error loading line for {subreddit}: {line}")
+						continue
+					user_comments = int(items[1])
+					commenters[items[0]] = user_comments
+					count_comments += user_comments
+
+			dateString = filename.split("_")[-1][:-4]
+			print(f"Loaded {len(commenters)} commenters for subreddit r/{subreddit} through {dateString}")
+			dateThrough = datetime.strptime(dateString, '%Y-%m-%d')
+			return commenters, int(dateThrough.timestamp()), count_comments
+
+	return None, None, 0
+
+
+def saveSubredditCommenters(subreddit, commenters, dateThrough):
+	if dateThrough is None:
+		return
+	#print(f"Saving {len(commenters)} commenters for subreddit r/{subreddit} through {dateThrough.strftime('%Y-%m-%d')}")
+	for filename in os.listdir("overlap_subreddits"):
+		if filename.endswith(".txt") and filename.startswith(subreddit):
+			os.remove(os.path.join("overlap_subreddits", filename))
+
+	with open(os.path.join("overlap_subreddits", f"{subreddit}_{dateThrough.strftime('%Y-%m-%d')}.txt"), 'w') as outputFile:
+		for commenter, countComments in commenters.items():
+			outputFile.write(commenter)
+			outputFile.write("	")
+			outputFile.write(str(countComments))
+			outputFile.write("\n")
+
+
 def countCommenters(subreddit):
-	count = 0
-	commenters = defaultdict(int)
-	previousEpoch = startEpoch
+	commenters, previousEpoch, count = loadSubredditCommenters(subreddit)
+	if commenters is None:
+		commenters = defaultdict(int)
+		previousEpoch = startEpoch
 	print(f"Counting commenters in: {subreddit}")
 	breakOut = False
+	currentDate = None
 	while True:
 		newUrl = url.format(subreddit)+str(previousEpoch)
 		try:
@@ -53,56 +96,68 @@ def countCommenters(subreddit):
 				commenters[object['author']] += 1
 			count += 1
 			if count % 1000 == 0:
+				currentDatetime = datetime.fromtimestamp(previousEpoch)
 				print("r/{0} comments: {1}, {2}, {3:.2f}%".format(
 					subreddit,
 					count,
-					datetime.fromtimestamp(previousEpoch).strftime("%Y-%m-%d"),
+					currentDatetime.strftime("%Y-%m-%d"),
 					((startEpoch - previousEpoch) / totalSeconds) * 100))
+				if currentDatetime.date() != currentDate:
+					saveSubredditCommenters(subreddit, commenters, currentDatetime)
+					currentDate = currentDatetime.date()
 			if previousEpoch < endEpoch:
 				breakOut = True
+				currentDate = datetime.fromtimestamp(previousEpoch).date()
 				break
 		if breakOut:
 			break
+	saveSubredditCommenters(subreddit, commenters, currentDate)
 	print(f"Comments: {count}, commenters: {len(commenters)}")
 	return commenters
 
 
-totalCommenters = defaultdict(int)
-overlapCommenters = defaultdict(int)
+commenterSubreddits = defaultdict(int)
 for subreddit in subreddits:
 	commenters = countCommenters(subreddit)
 
-	if not len(overlapCommenters):
-		print("Building first")
-		for commenter in commenters:
-			if commenters[commenter] >= min_comments_per_sub:
-				overlapCommenters[commenter] += commenters[commenter]
-				totalCommenters[commenter] += commenters[commenter]
-		print(f"Done, size: {len(overlapCommenters)}")
-	else:
-		print(f"Building, current size: {len(overlapCommenters)}")
-		newOverlap = defaultdict(int)
-		for commenter in commenters:
-			if commenters[commenter] >= min_comments_per_sub:
-				totalCommenters[commenter] += commenters[commenter]
-				if commenter in overlapCommenters:
-					newOverlap[commenter] += commenters[commenter]
-		overlapCommenters = newOverlap
-		print(f"Done, new size: {len(overlapCommenters)}, total commenters: {len(totalCommenters)}")
+	for commenter in commenters:
+		if commenters[commenter] >= min_comments_per_sub:
+			commenterSubreddits[commenter] += 1
 
+sharedCommenters = defaultdict(list)
+for commenter, countSubreddits in commenterSubreddits.items():
+	if countSubreddits >= len(subreddits) - 2:
+		sharedCommenters[countSubreddits].append(commenter)
 
-print(f"{len(overlapCommenters)} of {len(totalCommenters)} total commenters commented in all subreddits, that's {round((len(overlapCommenters) / len(totalCommenters)) * 100, 2)} percent")
+commentersAll = len(sharedCommenters[len(subreddits)])
+commentersMinusOne = len(sharedCommenters[len(subreddits) - 1])
+commentersMinusTwo = len(sharedCommenters[len(subreddits) - 2])
+
+print(f"{commentersAll} commenters in all subreddits, {commentersMinusOne} in all but one, {commentersMinusTwo} in all but 2")
 
 with open(file_name, 'w') as txt:
-	if sort_by == 'author':
-		print(f"Printing to {file_name} sorted by author")
-		for user in sorted(overlapCommenters.keys(), key=str.lower):
-			txt.write(f"{user}: {overlapCommenters[user]}\n")
-	elif sort_by == 'comments':
-		print(f"Printing to {file_name} sorted by number of comments")
-		for user, comments in sorted(overlapCommenters.items(), key=lambda item: item[1], reverse=True):
-			txt.write(f"{user}: {comments}\n")
+	if commentersAll == 0:
+		txt.write(f"No commenters in all subreddits\n")
 	else:
-		print(f"Printing to {file_name} unsorted")
-		for user in overlapCommenters:
-			txt.write(f"{user}: {overlapCommenters[user]}\n")
+		txt.write(f"{commentersAll} commenters in all subreddits\n")
+		for user in sorted(sharedCommenters[len(subreddits)], key=str.lower):
+			txt.write(f"{user}\n")
+	txt.write("\n")
+
+	if commentersAll < 10:
+		if commentersMinusOne == 0:
+			txt.write(f"No commenters in all but one subreddits\n")
+		else:
+			txt.write(f"{commentersMinusOne} commenters in all but one subreddits\n")
+			for user in sorted(sharedCommenters[len(subreddits) - 1], key=str.lower):
+				txt.write(f"{user}\n")
+		txt.write("\n")
+
+		if commentersMinusOne < 10:
+			if commentersMinusTwo == 0:
+				txt.write(f"No commenters in all but two subreddits\n")
+			else:
+				txt.write(f"{commentersMinusTwo} commenters in all but two subreddits\n")
+				for user in sorted(sharedCommenters[len(subreddits) - 2], key=str.lower):
+					txt.write(f"{user}\n")
+			txt.write("\n")
