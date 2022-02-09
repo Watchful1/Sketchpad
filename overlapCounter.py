@@ -5,13 +5,13 @@ import time
 import os
 import json
 
-subreddits = ['Scottishpeopletwitter','Britishproblems','Purplepilldebate','Sinkpissers','Boneappletea','Whereareallthegoodmen']
+subreddits = ['wallstreetbets','finance']
 ignored_users = ['[deleted]', 'automoderator']
 lookback_days = 180
 min_comments_per_sub = 1
 file_name = "users.txt"
 
-url = "https://api.pushshift.io/reddit/comment/search?&limit=1000&sort=desc&subreddit={}&before="
+url = "https://api.pushshift.io/reddit/submission/search?&limit=1000&sort=desc&subreddit={}&before="
 
 startTime = datetime.utcnow()
 startEpoch = int(startTime.timestamp())
