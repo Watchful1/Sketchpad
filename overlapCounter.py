@@ -5,13 +5,13 @@ import time
 import os
 import json
 
-subreddits = ['wallstreetbets','finance']
+subreddits = ['TownofSalemgame','Catholicism']
 ignored_users = ['[deleted]', 'automoderator']
-lookback_days = 180
+lookback_days = 120
 min_comments_per_sub = 1
 file_name = "users.txt"
 
-url = "https://api.pushshift.io/reddit/submission/search?&limit=1000&sort=desc&subreddit={}&before="
+url = "https://api.pushshift.io/reddit/comment/search?&limit=1000&sort=desc&subreddit={}&before="
 
 startTime = datetime.utcnow()
 startEpoch = int(startTime.timestamp())
@@ -75,7 +75,7 @@ def countCommenters(subreddit):
 		newUrl = url.format(subreddit)+str(previousEpoch)
 		try:
 			response = requests.get(newUrl, headers={'User-Agent': "Overlap counter by /u/Watchful1"})
-		except requests.exceptions.ReadTimeout:
+		except (requests.exceptions.ReadTimeout, requests.exceptions.ChunkedEncodingError, requests.exceptions.ConnectionError):
 			print(f"Pushshift timeout, this usually means pushshift is down. Waiting 5 seconds and trying again: {newUrl}")
 			time.sleep(5)
 			continue
