@@ -6,9 +6,11 @@ import json
 import sys
 
 username = ""  # put the username you want to download in the quotes
-subreddit = ""  # put the subreddit you want to download in the quotes
+subreddit = "egg_irl"  # put the subreddit you want to download in the quotes
 # leave either one blank to download an entire user's or subreddit's history
 # or fill in both to download a specific users history from a specific subreddit
+
+convert_to_ascii = False  # don't touch this unless you know what you're doing
 
 filter_string = None
 if username == "" and subreddit == "":
@@ -30,7 +32,10 @@ def downloadFromUrl(filename, object_type):
 	print(f"Saving {object_type}s to {filename}")
 
 	count = 0
-	handle = open(filename, 'w')
+	if convert_to_ascii:
+		handle = open(filename, 'w', encoding='ascii')
+	else:
+		handle = open(filename, 'w', encoding='UTF-8')
 	previous_epoch = int(start_time.timestamp())
 	while True:
 		new_url = url.format(object_type, filter_string)+str(previous_epoch)
@@ -57,25 +62,39 @@ def downloadFromUrl(filename, object_type):
 					handle.write(" : ")
 					handle.write(datetime.fromtimestamp(object['created_utc']).strftime("%Y-%m-%d"))
 					handle.write("\n")
-					handle.write(object['body'].encode(encoding='ascii', errors='ignore').decode())
+					if convert_to_ascii:
+						handle.write(object['body'].encode(encoding='ascii', errors='ignore').decode())
+					else:
+						handle.write(object['body'])
 					handle.write("\n-------------------------------\n")
 				except Exception as err:
 					print(f"Couldn't print comment: https://www.reddit.com{object['permalink']}")
 					print(traceback.format_exc())
 			elif object_type == 'submission':
-				if object['is_self']:
-					if 'selftext' not in object:
-						continue
-					try:
-						handle.write(str(object['score']))
-						handle.write(" : ")
-						handle.write(datetime.fromtimestamp(object['created_utc']).strftime("%Y-%m-%d"))
-						handle.write("\n")
-						handle.write(object['selftext'].encode(encoding='ascii', errors='ignore').decode())
-						handle.write("\n-------------------------------\n")
-					except Exception as err:
-						print(f"Couldn't print post: {object['url']}")
-						print(traceback.format_exc())
+				try:
+					handle.write(str(object['score']))
+					handle.write(" : ")
+					handle.write(datetime.fromtimestamp(object['created_utc']).strftime("%Y-%m-%d"))
+					handle.write(" : ")
+					if convert_to_ascii:
+						handle.write(object['title'].encode(encoding='ascii', errors='ignore').decode())
+					else:
+						handle.write(object['title'])
+					handle.write("\n")
+					if object['is_self']:
+						if 'selftext' in object:
+							if convert_to_ascii:
+								handle.write(object['selftext'].encode(encoding='ascii', errors='ignore').decode())
+							else:
+								handle.write(object['selftext'])
+					else:
+						handle.write(object['url'])
+
+					handle.write("\n-------------------------------\n")
+				except Exception as err:
+					print(f"Couldn't print post: {object['url']}")
+					print(traceback.format_exc())
+
 
 		print("Saved {} {}s through {}".format(count, object_type, datetime.fromtimestamp(previous_epoch).strftime("%Y-%m-%d")))
 

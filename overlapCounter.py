@@ -5,15 +5,15 @@ import time
 import os
 import json
 
-subreddits = ['TownofSalemgame','Catholicism']
+subreddits = ['BPDmemes', 'DirtySnapchat', 'snapchat']
 ignored_users = ['[deleted]', 'automoderator']
-lookback_days = 120
+lookback_days = 180
 min_comments_per_sub = 1
 file_name = "users.txt"
 
-url = "https://api.pushshift.io/reddit/comment/search?&limit=1000&sort=desc&subreddit={}&before="
+url = "https://api.pushshift.io/reddit/submission/search?&limit=1000&sort=desc&subreddit={}&before="
 
-startTime = datetime.utcnow()
+startTime = datetime.utcnow()#datetime.strptime("22-02-25 00:00:00", '%y-%m-%d %H:%M:%S')#
 startEpoch = int(startTime.timestamp())
 endTime = startTime - timedelta(days=lookback_days)
 endEpoch = int(endTime.timestamp())
@@ -92,7 +92,7 @@ def countCommenters(subreddit):
 			break
 		for object in objects:
 			previousEpoch = object['created_utc'] - 1
-			if object['author'] not in ignored_users:
+			if object['author'].lower() not in ignored_users:
 				commenters[object['author']] += 1
 			count += 1
 			if count % 1000 == 0:
@@ -144,7 +144,7 @@ with open(file_name, 'w') as txt:
 			txt.write(f"{user}\n")
 	txt.write("\n")
 
-	if commentersAll < 10:
+	if commentersAll < 10 and len(subreddits) > 2:
 		if commentersMinusOne == 0:
 			txt.write(f"No commenters in all but one subreddits\n")
 		else:

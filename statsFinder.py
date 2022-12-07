@@ -8,7 +8,23 @@ from collections import defaultdict
 log = discord_logging.init_logging()
 
 usernames = [
-"ModWilliam",
+"DatGameGuy",
+"Lolburger13",
+"Loomisam",
+"Rinqed",
+"Professional_Ad8814",
+"Ali219",
+"Technicoloral",
+"TheUltimate721",
+"Fullthrottlesolo",
+"overawtch",
+"kewlaid33",
+"unknownQTY",
+"Joeranahan1",
+"--GoldenFire--",
+"KloudToo",
+"HeyThere8_",
+"Kanshan",
 ]
 
 count_url = "https://api.pushshift.io/reddit/{}/search?limit=1000&sort=desc&subreddit={}&author={}&before="
