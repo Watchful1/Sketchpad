@@ -5,13 +5,13 @@ import time
 import os
 import json
 
-subreddits = ['BPDmemes', 'DirtySnapchat', 'snapchat']
+subreddits = ['lakers', 'CODWarzone']
 ignored_users = ['[deleted]', 'automoderator']
-lookback_days = 180
+lookback_days = 30
 min_comments_per_sub = 1
 file_name = "users.txt"
 
-url = "https://api.pushshift.io/reddit/submission/search?&limit=1000&sort=desc&subreddit={}&before="
+url = "https://api.pushshift.io/reddit/comment/search?&limit=1000&sort=desc&subreddit={}&before="
 
 startTime = datetime.utcnow()#datetime.strptime("22-02-25 00:00:00", '%y-%m-%d %H:%M:%S')#
 startEpoch = int(startTime.timestamp())
@@ -133,7 +133,7 @@ commentersAll = len(sharedCommenters[len(subreddits)])
 commentersMinusOne = len(sharedCommenters[len(subreddits) - 1])
 commentersMinusTwo = len(sharedCommenters[len(subreddits) - 2])
 
-print(f"{commentersAll} commenters in all subreddits, {commentersMinusOne} in all but one, {commentersMinusTwo} in all but 2")
+print(f"{commentersAll} commenters in all subreddits, {commentersMinusOne} in all but one, {commentersMinusTwo} in all but 2. Writing output to {file_name}")
 
 with open(file_name, 'w') as txt:
 	if commentersAll == 0:
