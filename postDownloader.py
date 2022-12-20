@@ -23,7 +23,7 @@ elif username != "" and subreddit == "":
 else:
 	filter_string = f"author={username}&subreddit={subreddit}"
 
-url = "https://api.pushshift.io/reddit/{}/search?limit=1000&sort=desc&{}&before="
+url = "https://api.pushshift.io/reddit/{}/search?limit=1000&order=desc&{}&before="
 
 start_time = datetime.utcnow()
 
