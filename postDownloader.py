@@ -25,7 +25,8 @@ else:
 
 url = "https://api.pushshift.io/reddit/{}/search?limit=1000&order=desc&{}&before="
 
-start_time = datetime.utcnow()
+start_time = datetime.utcnow()  #datetime.strptime("10/05/2021", "%m/%d/%Y")
+end_time = None  #datetime.strptime("09/25/2021", "%m/%d/%Y")#datetime.utcnow()
 
 
 def downloadFromUrl(filename, object_type):
@@ -37,6 +38,7 @@ def downloadFromUrl(filename, object_type):
 	else:
 		handle = open(filename, 'w', encoding='UTF-8')
 	previous_epoch = int(start_time.timestamp())
+	break_out = False
 	while True:
 		new_url = url.format(object_type, filter_string)+str(previous_epoch)
 		json_text = requests.get(new_url, headers={'User-Agent': "Post downloader by /u/Watchful1"})
@@ -55,12 +57,19 @@ def downloadFromUrl(filename, object_type):
 
 		for object in objects:
 			previous_epoch = object['created_utc'] - 1
+			if end_time is not None and datetime.utcfromtimestamp(previous_epoch) < end_time:
+				break_out = True
+				break
 			count += 1
 			if object_type == 'comment':
 				try:
 					handle.write(str(object['score']))
 					handle.write(" : ")
 					handle.write(datetime.fromtimestamp(object['created_utc']).strftime("%Y-%m-%d"))
+					handle.write(" : u/")
+					handle.write(object['author'])
+					handle.write(" : ")
+					handle.write(f"https://www.reddit.com{object['permalink']}")
 					handle.write("\n")
 					if convert_to_ascii:
 						handle.write(object['body'].encode(encoding='ascii', errors='ignore').decode())
@@ -80,6 +89,10 @@ def downloadFromUrl(filename, object_type):
 						handle.write(object['title'].encode(encoding='ascii', errors='ignore').decode())
 					else:
 						handle.write(object['title'])
+					handle.write(" : u/")
+					handle.write(object['author'])
+					handle.write(" : ")
+					handle.write(f"https://www.reddit.com{object['permalink']}")
 					handle.write("\n")
 					if object['is_self']:
 						if 'selftext' in object:
@@ -95,6 +108,8 @@ def downloadFromUrl(filename, object_type):
 					print(f"Couldn't print post: {object['url']}")
 					print(traceback.format_exc())
 
+		if break_out:
+			break
 
 		print("Saved {} {}s through {}".format(count, object_type, datetime.fromtimestamp(previous_epoch).strftime("%Y-%m-%d")))
 

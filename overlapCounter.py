@@ -12,7 +12,7 @@ min_comments_per_sub = 1
 file_name = "users.txt"
 require_first_subreddit = True  # if true, print users that occur in the first subreddit and any one of the following ones. Otherwise just find the most overlap between all subs
 
-url = "https://api.pushshift.io/reddit/comment/search?&limit=1000&sort=desc&subreddit={}&before="
+url = "https://api.pushshift.io/reddit/comment/search?&limit=1000&order=desc&subreddit={}&before="
 
 startTime = datetime.utcnow()#datetime.strptime("22-02-25 00:00:00", '%y-%m-%d %H:%M:%S')#
 startEpoch = int(startTime.timestamp())
