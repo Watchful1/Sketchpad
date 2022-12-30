@@ -5,12 +5,12 @@ import time
 import os
 import json
 
-subreddits = ['Calgary','Metal','MetalMemes','metaljerk','Metalcore','metalmusicians','BlackMetal','numetal','progmetal','metal_me_irl','doommetal','metalguitar','PowerMetal','Metal101']
+subreddits = ['Calgary','Metal']
 ignored_users = ['[deleted]', 'automoderator']
 lookback_days = 180
 min_comments_per_sub = 1
 file_name = "users.txt"
-require_first_subreddit = True  # if true, print users that occur in the first subreddit and any one of the following ones. Otherwise just find the most overlap between all subs
+require_first_subreddit = False  # if true, print users that occur in the first subreddit and any one of the following ones. Otherwise just find the most overlap between all subs
 
 url = "https://api.pushshift.io/reddit/comment/search?&limit=1000&order=desc&subreddit={}&before="
 
@@ -66,7 +66,7 @@ def saveSubredditCommenters(subreddit, commenters, dateThrough):
 
 def countCommenters(subreddit):
 	commenters, previousEpoch, count = loadSubredditCommenters(subreddit)
-	if previousEpoch < endEpoch:
+	if previousEpoch is not None and previousEpoch < endEpoch:
 		print(f"Full subreddit loaded: {subreddit}")
 		return commenters
 	if commenters is None:
