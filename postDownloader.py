@@ -6,22 +6,26 @@ import json
 import sys
 
 username = ""  # put the username you want to download in the quotes
-subreddit = "egg_irl"  # put the subreddit you want to download in the quotes
+subreddit = ""  # put the subreddit you want to download in the quotes
+thread_id = ""  # put the id of the thread you want to download in the quotes, it's the first 5 to 7 character string of letters and numbers from the url, like 107xayi
 # leave either one blank to download an entire user's or subreddit's history
 # or fill in both to download a specific users history from a specific subreddit
 
 convert_to_ascii = False  # don't touch this unless you know what you're doing
 
 filter_string = None
-if username == "" and subreddit == "":
-	print("Fill in either username or subreddit")
+if username == "" and subreddit == "" and thread_id == "":
+	print("Fill in username, subreddit or thread id")
 	sys.exit(0)
-elif username == "" and subreddit != "":
-	filter_string = f"subreddit={subreddit}"
-elif username != "" and subreddit == "":
-	filter_string = f"author={username}"
-else:
-	filter_string = f"author={username}&subreddit={subreddit}"
+
+filters = []
+if username:
+	filters.append(f"author={username}")
+if subreddit:
+	filters.append(f"subreddit={subreddit}")
+if thread_id:
+	filters.append(f"link_id=t3_{thread_id}")
+filter_string = '&'.join(filters)
 
 url = "https://api.pushshift.io/reddit/{}/search?limit=1000&order=desc&{}&before="
 
@@ -116,6 +120,6 @@ def downloadFromUrl(filename, object_type):
 	print(f"Saved {count} {object_type}s")
 	handle.close()
 
-
-downloadFromUrl("posts.txt", "submission")
+if not thread_id:
+	downloadFromUrl("posts.txt", "submission")
 downloadFromUrl("comments.txt", "comment")
