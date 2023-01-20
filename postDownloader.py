@@ -15,7 +15,8 @@ thread_id = ""  # put the id of the thread you want to download in the quotes, i
 
 # change this to one of "human", "csv" or "json"
 # - human: the score, creation date, author, link and then the comment/submission body on a second line. Objects are separated by lines of dashes
-# - csv:
+# - csv: a comma seperated value file with the fields score, date, title, author, link and then body or url
+# - json: the full json object
 output_format = "human"
 
 # default start time is the current time and default end time is all history
@@ -116,21 +117,25 @@ def download_from_url(filename, url_base, output_format, start_datetime, end_dat
 		if len(objects) == 0:
 			break
 
-		for object in objects:
-			previous_epoch = object['created_utc'] - 1
+		for obj in objects:
+			previous_epoch = obj['created_utc'] - 1
 			if end_datetime is not None and datetime.utcfromtimestamp(previous_epoch) < end_datetime:
 				break_out = True
 				break
 			count += 1
 			try:
 				if output_format == "human":
-					write_human_line(handle, object, is_submission, convert_to_ascii)
+					write_human_line(handle, obj, is_submission, convert_to_ascii)
 				elif output_format == "csv":
-					write_csv_line(writer, object, is_submission)
+					write_csv_line(writer, obj, is_submission)
 				elif output_format == "json":
-					write_json_line(handle, object)
+					write_json_line(handle, obj)
 			except Exception as err:
-				print(f"Couldn't print object: https://www.reddit.com{object['permalink']}")
+				if 'permalink' in obj:
+					print(f"Couldn't print object: https://www.reddit.com{obj['permalink']}")
+				else:
+					print(f"Couldn't print object, missing permalink: {obj['id']}")
+				print(err)
 				print(traceback.format_exc())
 
 		if break_out:
