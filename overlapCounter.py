@@ -1,3 +1,5 @@
+import sys
+
 import requests
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -5,9 +7,14 @@ import time
 import os
 import json
 
-subreddits = ['Calgary','Metal']
+# IMPORTANT READ THIS FIRST
+# The pushshift service that this script uses is only available to moderators. Go through this guide to get a token and update the token field below
+# https://api.pushshift.io/guide
+
+token = ""
+subreddits = ['PKA','bayarea']
 ignored_users = ['[deleted]', 'automoderator']
-lookback_days = 180
+lookback_days = 30
 min_comments_per_sub = 1
 file_name = "users.txt"
 require_first_subreddit = False  # if true, print users that occur in the first subreddit and any one of the following ones. Otherwise just find the most overlap between all subs
@@ -78,13 +85,18 @@ def countCommenters(subreddit):
 	while True:
 		newUrl = url.format(subreddit)+str(previousEpoch)
 		try:
-			response = requests.get(newUrl, headers={'User-Agent': "Overlap counter by /u/Watchful1"})
+			response = requests.get(newUrl, headers={'User-Agent': "Overlap counter by /u/Watchful1", 'Authorization': f"Bearer {token}"})
 		except (requests.exceptions.ReadTimeout, requests.exceptions.ChunkedEncodingError, requests.exceptions.ConnectionError):
 			print(f"Pushshift timeout, this usually means pushshift is down. Waiting 5 seconds and trying again: {newUrl}")
 			time.sleep(5)
 			continue
 		try:
-			objects = response.json()['data']
+			result_data = response.json()
+			if "detail" in result_data and result_data['detail'] == "Not authenticated":
+				print("You are not authenticated, read the comment at the top and update the token")
+				sys.exit(1)
+
+			objects = result_data['data']
 		except json.decoder.JSONDecodeError:
 			print(f"Decoding error, this usually means pushshift is down. Waiting 5 seconds and trying again: {newUrl}")
 			time.sleep(5)
@@ -120,63 +132,64 @@ def countCommenters(subreddit):
 	return commenters
 
 
-commenterSubreddits = defaultdict(int)
-is_first = True
-for subreddit in subreddits:
-	commenters = countCommenters(subreddit)
+if __name__ == "__main__":
+	commenterSubreddits = defaultdict(int)
+	is_first = True
+	for subreddit in subreddits:
+		commenters = countCommenters(subreddit)
 
-	for commenter in commenters:
-		if require_first_subreddit and not is_first and commenter not in commenterSubreddits:
-			continue
-		if commenters[commenter] >= min_comments_per_sub:
-			commenterSubreddits[commenter] += 1
-	is_first = False
+		for commenter in commenters:
+			if require_first_subreddit and not is_first and commenter not in commenterSubreddits:
+				continue
+			if commenters[commenter] >= min_comments_per_sub:
+				commenterSubreddits[commenter] += 1
+		is_first = False
 
-if require_first_subreddit:
-	count_found = 0
-	with open(file_name, 'w') as txt:
-		txt.write(f"Commenters in r/{subreddits[0]} and at least one of r/{(', '.join(subreddits))}\n")
+	if require_first_subreddit:
+		count_found = 0
+		with open(file_name, 'w') as txt:
+			txt.write(f"Commenters in r/{subreddits[0]} and at least one of r/{(', '.join(subreddits))}\n")
+			for commenter, countSubreddits in commenterSubreddits.items():
+				if countSubreddits >= 2:
+					count_found += 1
+					txt.write(f"{commenter}\n")
+		print(f"{count_found} commenters in r/{subreddits[0]} and at least one of r/{(', '.join(subreddits))}")
+
+	else:
+		sharedCommenters = defaultdict(list)
 		for commenter, countSubreddits in commenterSubreddits.items():
-			if countSubreddits >= 2:
-				count_found += 1
-				txt.write(f"{commenter}\n")
-	print(f"{count_found} commenters in r/{subreddits[0]} and at least one of r/{(', '.join(subreddits))}")
+			if countSubreddits >= len(subreddits) - 2:
+				sharedCommenters[countSubreddits].append(commenter)
 
-else:
-	sharedCommenters = defaultdict(list)
-	for commenter, countSubreddits in commenterSubreddits.items():
-		if countSubreddits >= len(subreddits) - 2:
-			sharedCommenters[countSubreddits].append(commenter)
+		commentersAll = len(sharedCommenters[len(subreddits)])
+		commentersMinusOne = len(sharedCommenters[len(subreddits) - 1])
+		commentersMinusTwo = len(sharedCommenters[len(subreddits) - 2])
 
-	commentersAll = len(sharedCommenters[len(subreddits)])
-	commentersMinusOne = len(sharedCommenters[len(subreddits) - 1])
-	commentersMinusTwo = len(sharedCommenters[len(subreddits) - 2])
+		print(f"{commentersAll} commenters in all subreddits, {commentersMinusOne} in all but one, {commentersMinusTwo} in all but 2. Writing output to {file_name}")
 
-	print(f"{commentersAll} commenters in all subreddits, {commentersMinusOne} in all but one, {commentersMinusTwo} in all but 2. Writing output to {file_name}")
-
-	with open(file_name, 'w') as txt:
-		if commentersAll == 0:
-			txt.write(f"No commenters in all subreddits\n")
-		else:
-			txt.write(f"{commentersAll} commenters in all subreddits\n")
-			for user in sorted(sharedCommenters[len(subreddits)], key=str.lower):
-				txt.write(f"{user}\n")
-		txt.write("\n")
-
-		if commentersAll < 10 and len(subreddits) > 2:
-			if commentersMinusOne == 0:
-				txt.write(f"No commenters in all but one subreddits\n")
+		with open(file_name, 'w') as txt:
+			if commentersAll == 0:
+				txt.write(f"No commenters in all subreddits\n")
 			else:
-				txt.write(f"{commentersMinusOne} commenters in all but one subreddits\n")
-				for user in sorted(sharedCommenters[len(subreddits) - 1], key=str.lower):
+				txt.write(f"{commentersAll} commenters in all subreddits\n")
+				for user in sorted(sharedCommenters[len(subreddits)], key=str.lower):
 					txt.write(f"{user}\n")
 			txt.write("\n")
 
-			if commentersMinusOne < 10:
-				if commentersMinusTwo == 0:
-					txt.write(f"No commenters in all but two subreddits\n")
+			if commentersAll < 10 and len(subreddits) > 2:
+				if commentersMinusOne == 0:
+					txt.write(f"No commenters in all but one subreddits\n")
 				else:
-					txt.write(f"{commentersMinusTwo} commenters in all but two subreddits\n")
-					for user in sorted(sharedCommenters[len(subreddits) - 2], key=str.lower):
+					txt.write(f"{commentersMinusOne} commenters in all but one subreddits\n")
+					for user in sorted(sharedCommenters[len(subreddits) - 1], key=str.lower):
 						txt.write(f"{user}\n")
 				txt.write("\n")
+
+				if commentersMinusOne < 10:
+					if commentersMinusTwo == 0:
+						txt.write(f"No commenters in all but two subreddits\n")
+					else:
+						txt.write(f"{commentersMinusTwo} commenters in all but two subreddits\n")
+						for user in sorted(sharedCommenters[len(subreddits) - 2], key=str.lower):
+							txt.write(f"{user}\n")
+					txt.write("\n")
