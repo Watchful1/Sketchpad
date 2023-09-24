@@ -7,6 +7,11 @@ import sys
 import csv
 import json
 
+# IMPORTANT READ THIS FIRST
+# The pushshift service that this script uses is only available to moderators. Go through this guide to get a token and update the token field below
+# https://api.pushshift.io/guide
+token = ""
+
 username = ""  # put the username you want to download in the quotes
 subreddit = ""  # put the subreddit you want to download in the quotes
 thread_id = ""  # put the id of the thread you want to download in the quotes, it's the first 5 to 7 character string of letters and numbers from the url, like 107xayi
@@ -103,7 +108,7 @@ def download_from_url(filename, url_base, output_format, start_datetime, end_dat
 	break_out = False
 	while True:
 		new_url = url_base+str(previous_epoch)
-		json_text = requests.get(new_url, headers={'User-Agent': "Post downloader by /u/Watchful1"})
+		json_text = requests.get(new_url, headers={'User-Agent': "Post downloader by /u/Watchful1", 'Authorization': f"Bearer {token}"})
 		time.sleep(1)  # pushshift has a rate limit, if we send requests too fast it will start returning error messages
 		try:
 			json_data = json_text.json()
