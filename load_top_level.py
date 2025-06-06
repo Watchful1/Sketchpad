@@ -22,8 +22,8 @@ def gather_more_comments(submission):
 	return more_comments
 
 
-thread_id = "hl30ln"
-reddit = praw.Reddit("Watchful1BotTest")
+thread_id = "1735w17"
+reddit = praw.Reddit("Watchful1")
 
 submission = reddit.submission(thread_id)
 # count the number of API requests we've made
@@ -38,6 +38,9 @@ while more_comments:
 
 	# call the fetch method to get all the comments from the API
 	new_comments = more_comment.comments(update=False)
+	if len(new_comments) == 0:
+		# retry again just in case
+		new_comments = more_comment.comments(update=False)
 
 	count_requests += 1
 

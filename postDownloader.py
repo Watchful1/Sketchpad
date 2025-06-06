@@ -10,9 +10,9 @@ import json
 # IMPORTANT READ THIS FIRST
 # The pushshift service that this script uses is only available to moderators. Go through this guide to get a token and update the token field below
 # https://api.pushshift.io/guide
-token = ""
+token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoiV2F0Y2hmdWwxIiwiZXhwaXJlcyI6MTcxMTc2NTA3Miwic2NvcGUiOiIqIn0.L-RXleAg_ncStaAZAOf7oKd1cK8psisM3PENPa-eXVM"
 
-username = ""  # put the username you want to download in the quotes
+username = "Straight-Wrap-172"  # put the username you want to download in the quotes
 subreddit = ""  # put the subreddit you want to download in the quotes
 thread_id = ""  # put the id of the thread you want to download in the quotes, it's the first 5 to 7 character string of letters and numbers from the url, like 107xayi
 # leave either one blank to download an entire user's or subreddit's history
@@ -27,7 +27,7 @@ output_format = "human"
 # default start time is the current time and default end time is all history
 # you can change out the below lines to set a custom start and end date. The script works backwards, so the end date has to be before the start date
 start_time = datetime.utcnow()  #datetime.strptime("10/05/2021", "%m/%d/%Y")
-end_time = None  #datetime.strptime("09/25/2021", "%m/%d/%Y")
+end_time = None  #datetime.strptime("01/01/2023", "%m/%d/%Y")
 
 convert_to_ascii = False  # don't touch this unless you know what you're doing
 convert_thread_id_to_base_ten = True  # don't touch this unless you know what you're doing
@@ -46,7 +46,10 @@ def write_human_line(handle, obj, is_submission, convert_to_ascii):
 	handle.write(" : u/")
 	handle.write(obj['author'])
 	handle.write(" : ")
-	handle.write(f"https://www.reddit.com{obj['permalink']}")
+	if 'permalink' not in obj:
+		handle.write(f"No link available")
+	else:
+		handle.write(f"https://www.reddit.com{obj['permalink']}")
 	handle.write("\n")
 	if is_submission:
 		if obj['is_self']:

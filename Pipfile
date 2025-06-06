@@ -10,6 +10,9 @@ psaw = "*"
 moviepy = "*"
 zstandard = "*"
 discord-logging = {editable = true, git = "https://github.com/Watchful1/DiscordLogging.git"}
+exifread = "*"
+qreader = "*"
+qrcode = "*"
 
 [dev-packages]
 

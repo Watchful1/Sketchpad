@@ -5,8 +5,11 @@ import os
 log = discord_logging.init_logging()
 
 if __name__ == "__main__":
-	backup_folder = r"D:\backup\UpdateMeBot"
-	delete_folder = r"D:\backup\UpdateMeBotDelete"
+	backup_folder = r"D:\backup\RemindMeBot"
+	delete_folder = r"D:\backup\RemindMeBotDelete"
+
+	if not os.path.exists(delete_folder):
+		os.makedirs(delete_folder)
 
 	known_day = None
 	for subdir, dirs, files in os.walk(backup_folder):
