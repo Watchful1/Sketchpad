@@ -11,32 +11,42 @@ import sys
 log = discord_logging.init_logging()
 
 
-def save_data(holder):
+def save_data(holder, clean=False):
 	file_handle = open("subreddits_2.txt", "w", encoding="utf-8")
+	count_subs, count_mods = 0,0
 	for subreddit in holder.subreddits.values():
+		moderator_names = subreddit.moderator_names()
+		if clean and not len(moderator_names):
+			continue
 		file_handle.write(subreddit.name)
 		file_handle.write(":")
 		file_handle.write(str(subreddit.subscribers))
 		file_handle.write(":")
 		file_handle.write("1" if subreddit.complete else "0")
 		file_handle.write(":")
-		file_handle.write(','.join(subreddit.moderator_names()))
+		file_handle.write(','.join(moderator_names))
 		file_handle.write("\n")
+		count_subs += 1
 	file_handle.write("----------\n")
 	for moderator in holder.moderators.values():
+		subreddit_names = moderator.subreddit_names()
+		if clean and not len(subreddit_names):
+			continue
 		file_handle.write(moderator.name)
 		file_handle.write(":")
 		file_handle.write("1" if moderator.complete else "0")
 		file_handle.write(":")
-		file_handle.write(','.join(moderator.subreddit_names()))
+		file_handle.write(','.join(subreddit_names))
 		file_handle.write("\n")
+		count_mods += 1
 	file_handle.close()
-	# if os.path.exists("subreddits.txt"):
-	# 	os.remove("subreddits.txt")
-	# os.rename("subreddits_2.txt", "subreddits.txt")
+	if os.path.exists("subreddits.txt"):
+		os.remove("subreddits.txt")
+	os.rename("subreddits_2.txt", "subreddits.txt")
+	log.info(f"Saved {count_subs} subreddits and {count_mods} moderators")
 
 
-def load_data(bots):
+def load_data(bots, subreddits_string):
 	holder = DataHolder(bots)
 	if not os.path.exists("subreddits.txt"):
 		return holder
@@ -52,7 +62,7 @@ def load_data(bots):
 		if not reading_moderators:
 			subreddit_name, subscribers, complete, moderators_line = line.strip().lower().split(":")
 			subreddit = holder.get_or_add_subreddit(subreddit_name)
-			subreddit.subscribers = subscribers
+			subreddit.subscribers = int(subscribers)
 			subreddit.complete = complete == "1"
 			if moderators_line != "":
 				for moderator_name in moderators_line.split(","):
@@ -67,6 +77,15 @@ def load_data(bots):
 						holder.get_or_add_subreddit(subreddit_name, moderator_name)
 
 	file_handle.close()
+
+	for line in subreddit_string.split("\n"):
+		if line == "":
+			continue
+		subreddit_name, view_count_string = line.lower().split("\t")
+		view_count = int(view_count_string.replace(",", ""))
+		subreddit = holder.get_or_add_subreddit(subreddit_name)
+		subreddit.view_count = view_count
+
 	return holder
 
 
@@ -101,7 +120,7 @@ class DataHolder:
 		moderator = self.moderators.get(moderator_name)
 		if moderator is None:
 			moderator = Moderator(moderator_name)
-			self.moderators[subreddit_name] = moderator
+			self.moderators[moderator_name] = moderator
 
 		if subreddit_name is not None:
 			subreddit_name = subreddit_name.lower()
@@ -126,21 +145,21 @@ class Moderator:
 
 	def count_over_million(self):
 		count = 0
-		for subreddit in self.subreddits:
+		for subreddit in self.subreddits.values():
 			if subreddit.over_million():
 				count += 1
 		return count
 
 	def count_over_hundredk(self):
 		count = 0
-		for subreddit in self.subreddits:
+		for subreddit in self.subreddits.values():
 			if subreddit.over_hundredk():
 				count += 1
 		return count
 
 	def count_unknown(self):
 		count = 0
-		for subreddit in self.subreddits:
+		for subreddit in self.subreddits.values():
 			if subreddit.view_count == -1:
 				count += 1
 		return count
@@ -264,17 +283,10 @@ opiniaoimpopular	156,415
 MemesBR	146,435
 saopaulo	120,223
 PergunteReddit	117,523
+drugs	313,495
 """
 
-	holder = load_data(bots)
-
-	for line in subreddit_string.split("\n"):
-		if line == "":
-			continue
-		subreddit_name, view_count_string = line.lower().split("\t")
-		view_count = int(view_count_string.replace(",", ""))
-		subreddit = holder.get_or_add_subreddit(subreddit_name)
-		subreddit.view_count = view_count
+	holder = load_data(bots, subreddit_string)
 
 	# loop through subreddits to get the ones we need to look up
 	subreddits_to_lookup = []
@@ -293,7 +305,6 @@ PergunteReddit	117,523
 		log.info(f"{i}/{len(subreddits_to_lookup)}: r/{subreddit.name} has {len(subreddit.moderators)} moderators")
 
 	save_data(holder)
-	log.info(f"Saved {len(holder.subreddits)} subreddits and {len(holder.moderators)} moderators")
 
 	# loop through moderators to get list of ones to lookup
 	moderators_to_lookup = []
@@ -314,60 +325,28 @@ PergunteReddit	117,523
 		moderator = holder.get_or_add_moderator(moderator.name)
 		moderator.complete = True
 		log.info(f"{i}/{len(moderators_to_lookup)}: u/{moderator.name} has {len(moderator.subreddits)} subreddits")
-		if i >= 200:
-			break
+		# if i >= 200:
+		# 	break
 
-	save_data(holder)
-	log.info(f"Saved {len(holder.subreddits)} subreddits and {len(holder.moderators)} moderators")
-
-	log.info(f"Top moderators")
-	sorted_moderators = []
-	for moderator in holder.moderators.values():
-		sorted_moderators.append((moderator.name, len(moderator.subreddits)))
-	sorted_moderators = sorted(sorted_moderators, key=lambda x: x[1], reverse=True)
-	for moderator_name, count in sorted_moderators[:10]:
-		log.info(f"u/{moderator_name} : {count}")
+	save_data(holder, clean=True)
+	holder = load_data(bots, subreddit_string)
 
 
-	# loop moderators
-	# loop first unknown subreddits
-
-	sys.exit()
-
-
-
-	for subreddit in list(subreddits.values()):
-		for reddit_moderator in reddit.subreddit(subreddit.name).moderator():
-			if reddit_moderator.name in bots:
-				continue
-			moderator = moderators.get(reddit_moderator.name, Moderator(reddit_moderator.name))
-
-			subreddit.moderators.append(moderator)
-			log.info(f"r/{subreddit.name}: {moderator.name}")
-			if len(moderator.subreddits) == 0:
-				for reddit_moderated_subreddit in reddit_moderator.moderated():
-					if reddit_moderated_subreddit.subscribers < 10000:
-						continue
-					moderated_subreddit = subreddits.get(reddit_moderated_subreddit.display_name)
-					if moderated_subreddit is None:
-						moderated_subreddit = Subreddit(reddit_moderated_subreddit.display_name, -1)
-						subreddits[moderated_subreddit] = moderated_subreddit
-					if moderated_subreddit.subscribers == -1:
-						moderated_subreddit.subscribers = reddit_moderated_subreddit.subscribers
-					moderator.subreddits.append(moderated_subreddit)
-			log.info(f"    {len(moderator.subreddits)}")
-			# for moderated_subreddit in moderator.subreddits:
-			# 	log.info(f"    {moderated_subreddit}")
-
-	log.info(f"----------------------------------------------")
+	# log.info(f"Top moderators")
+	# sorted_moderators = []
+	# for moderator in holder.moderators.values():
+	# 	sorted_moderators.append((moderator.name, len(moderator.subreddits)))
+	# sorted_moderators = sorted(sorted_moderators, key=lambda x: x[1], reverse=True)
+	# for moderator_name, count in sorted_moderators[:10]:
+	# 	log.info(f"u/{moderator_name} : {count}")
 
 	unknown_subreddits = {}
-	for subreddit in sorted(subreddits.values(), key=lambda x: x.view_count, reverse=True):
+	for subreddit in sorted(holder.subreddits.values(), key=lambda x: x.get_view_count(), reverse=True):
 		log.info(f"r/{subreddit.name}")
 		if subreddit.view_count == -1 and subreddit.name not in unknown_subreddits:
 			unknown_subreddits[subreddit.name] = subreddit
 		count_affected = 0
-		for moderator in subreddit.moderators:
+		for moderator in subreddit.moderators.values():
 			if subreddit.over_million() and moderator.count_drop_million() > 0:
 				count_affected += 1
 			elif subreddit.over_hundredk() and moderator.count_drop_hundredk() > 0:
@@ -377,12 +356,12 @@ PergunteReddit	117,523
 
 	log.info(f"----------------------------------------------")
 
-	for subreddit in sorted(subreddits.values(), key=lambda x: x.view_count, reverse=True):
+	for subreddit in sorted(holder.subreddits.values(), key=lambda x: x.get_view_count(), reverse=True):
 		if subreddit.view_count == -1:
 			continue
 		count_affected = 0
 		count_unknown = 0
-		for moderator in subreddit.moderators:
+		for moderator in subreddit.moderators.values():
 			if subreddit.over_million() and moderator.count_drop_million() > 0:
 				count_affected += 1
 			elif subreddit.over_hundredk() and moderator.count_drop_hundredk() > 0:
@@ -391,10 +370,10 @@ PergunteReddit	117,523
 				count_unknown += 1
 		print(f"{subreddit.name}	{subreddit.view_count}	{len(subreddit.moderators)}	{count_affected}	{count_unknown}")
 
-	log.info(f"----------------------------------------------")
-	log.info(f"Unknown subreddits")
-
-	for subreddit in sorted(unknown_subreddits.values(), key=lambda x: x.subscribers, reverse=True):
-		log.info(f"{subreddit.name}: {subreddit.subscribers}")
+	# log.info(f"----------------------------------------------")
+	# log.info(f"Unknown subreddits")
+	#
+	# for subreddit in sorted(unknown_subreddits.values(), key=lambda x: x.subscribers, reverse=True):
+	# 	log.info(f"{subreddit.name}: {subreddit.subscribers}")
 
 

@@ -88,3 +88,17 @@ ai-banning-automaton
 modlogstats
 banhammerapp
 i_am_a_real_bot
+social-blacklist
+manipulation-pi
+modqueue-alert
+nsfw-bot-helper
+ignorit-app
+safestbot
+moderatelyusefulbot
+ban-extended
+bot-swatter
+bang_bang_mod
+helpfuljanitor
+read-the-rules
+assistantbot
+floodgatesbot
