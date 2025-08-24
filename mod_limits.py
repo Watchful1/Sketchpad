@@ -207,7 +207,7 @@ class Subreddit:
 		if self.view_count == -1:
 			if self.subscribers == -1:
 				return -1
-			return self.subscribers
+			return int(self.subscribers / 2.896)
 		return self.view_count
 
 	def is_estimated(self):
@@ -357,15 +357,32 @@ fortnite	101,693
 	# 		log.info(f"    u/{moderator.name}: {len(moderator.subreddits)} : {moderator.count_over_million()} : {moderator.count_over_hundredk()} : {moderator.count_unknown()}")
 	# 	log.info(f"        {count_affected}")
 
+	# total_subscribers, total_views, count_subs = 0, 0, 0
+	# for subreddit in sorted(holder.subreddits.values(), key=lambda x: x.get_view_count(), reverse=True):
+	# 	if subreddit.view_count == -1:
+	# 		continue
+	# 	total_subscribers += subreddit.subscribers
+	# 	total_views += subreddit.view_count
+	# 	count_subs += 1
+	# log.info(f"{total_subscribers:,} | {total_views:,} | {count_subs} | {total_subscribers / total_views}")
+
 	log.info(f"----------------------------------------------")
 
+	all_missing_subs = set()
 	for subreddit in sorted(holder.subreddits.values(), key=lambda x: x.get_view_count(), reverse=True):
 		if subreddit.view_count == -1:
 			continue
 		count_affected = 0
 		count_estimated_affected = 0
 		count_unknown = 0
+		missing_subs = set()
 		for moderator in subreddit.moderators.values():
+			for moderator_subreddit in moderator.subreddits.values():
+				if moderator_subreddit.is_estimated():
+					missing_subs.add(moderator_subreddit.name)
+					all_missing_subs.add(moderator_subreddit.name)
+
+
 			if subreddit.over_million() and moderator.count_drop_million() > 0:
 				count_affected += 1
 			elif subreddit.over_hundredk() and moderator.count_drop_hundredk() > 0:
