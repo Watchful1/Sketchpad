@@ -11,25 +11,118 @@ import sys
 log = discord_logging.init_logging()
 
 
-def save_users(users):
-	file_handle = open("remindmebot_2.txt", "w", encoding="utf-8")
-	# file_handle.write(json.dumps(users, indent=4))
-	# file_handle.close()
-	# os.remove("remindmebot.txt")
-	# os.rename("remindmebot_2.txt", "remindmebot.txt")
-
-
-def load_users():
-	file_handle = open("remindmebot.txt", "r", encoding="utf-8")
-	users = json.load(file_handle)
+def save_data(holder):
+	file_handle = open("subreddits_2.txt", "w", encoding="utf-8")
+	for subreddit in holder.subreddits.values():
+		file_handle.write(subreddit.name)
+		file_handle.write(":")
+		file_handle.write(str(subreddit.subscribers))
+		file_handle.write(":")
+		file_handle.write("1" if subreddit.complete else "0")
+		file_handle.write(":")
+		file_handle.write(','.join(subreddit.moderator_names()))
+		file_handle.write("\n")
+	file_handle.write("----------\n")
+	for moderator in holder.moderators.values():
+		file_handle.write(moderator.name)
+		file_handle.write(":")
+		file_handle.write("1" if moderator.complete else "0")
+		file_handle.write(":")
+		file_handle.write(','.join(moderator.subreddit_names()))
+		file_handle.write("\n")
 	file_handle.close()
-	return users
+	# if os.path.exists("subreddits.txt"):
+	# 	os.remove("subreddits.txt")
+	# os.rename("subreddits_2.txt", "subreddits.txt")
+
+
+def load_data(bots):
+	holder = DataHolder(bots)
+	if not os.path.exists("subreddits.txt"):
+		return holder
+
+	file_handle = open("subreddits.txt", "r", encoding="utf-8")
+	reading_moderators = False
+	for line in file_handle:
+		if line.strip() == "":
+			continue
+		if line.strip() == "----------":
+			reading_moderators = True
+			continue
+		if not reading_moderators:
+			subreddit_name, subscribers, complete, moderators_line = line.strip().lower().split(":")
+			subreddit = holder.get_or_add_subreddit(subreddit_name)
+			subreddit.subscribers = subscribers
+			subreddit.complete = complete == "1"
+			if moderators_line != "":
+				for moderator_name in moderators_line.split(","):
+					holder.get_or_add_moderator(moderator_name, subreddit_name)
+		else:
+			moderator_name, complete, subreddits_line = line.strip().lower().split(":")
+			moderator = holder.get_or_add_moderator(moderator_name)
+			if moderator is not None:
+				moderator.complete = complete == "1"
+				if subreddits_line != "":
+					for subreddit_name in subreddits_line.split(","):
+						holder.get_or_add_subreddit(subreddit_name, moderator_name)
+
+	file_handle.close()
+	return holder
+
+
+class DataHolder:
+	def __init__(self, bots):
+		self.subreddits = {}
+		self.moderators = {}
+		self.bots = bots
+
+	def get_or_add_subreddit(self, subreddit_name, moderator_name=None):
+		subreddit_name = subreddit_name.lower()
+		subreddit = self.subreddits.get(subreddit_name)
+		if subreddit is None:
+			subreddit = Subreddit(subreddit_name)
+			self.subreddits[subreddit_name] = subreddit
+		if moderator_name is not None:
+			moderator_name = moderator_name.lower()
+			if moderator_name not in self.bots:
+				moderator = self.moderators.get(moderator_name)
+				if moderator is None:
+					moderator = Moderator(moderator_name)
+					self.moderators[moderator_name] = moderator
+
+				moderator.subreddits[subreddit_name] = subreddit
+				subreddit.moderators[moderator.name] = moderator
+		return subreddit
+
+	def get_or_add_moderator(self, moderator_name, subreddit_name=None):
+		moderator_name = moderator_name.lower()
+		if moderator_name in self.bots:
+			return None
+		moderator = self.moderators.get(moderator_name)
+		if moderator is None:
+			moderator = Moderator(moderator_name)
+			self.moderators[subreddit_name] = moderator
+
+		if subreddit_name is not None:
+			subreddit_name = subreddit_name.lower()
+			subreddit = self.subreddits.get(subreddit_name)
+			if subreddit is None:
+				subreddit = Subreddit(subreddit_name)
+				self.subreddits[subreddit_name] = subreddit
+
+			subreddit.moderators[moderator.name] = moderator
+			moderator.subreddits[subreddit_name] = subreddit
+		return moderator
 
 
 class Moderator:
-	def __init__(self, username):
+	def __init__(self, username, complete=False):
 		self.name = username
-		self.subreddits = []
+		self.subreddits = {}
+		self.complete = complete
+
+	def __str__(self):
+		return self.name
 
 	def count_over_million(self):
 		count = 0
@@ -61,13 +154,23 @@ class Moderator:
 	def count_drop_hundredk(self):
 		return max(self.count_over_hundredk() - 5, 0)
 
+	def subreddit_names(self):
+		names = []
+		for subreddit in self.subreddits.values():
+			names.append(subreddit.name)
+		return names
+
 
 class Subreddit:
-	def __init__(self, subreddit_name, view_count):
+	def __init__(self, subreddit_name, view_count=-1, subscribers=-1, complete=False):
 		self.name = subreddit_name
 		self.view_count = view_count
-		self.subscribers = -1
-		self.moderators = []
+		self.subscribers = subscribers
+		self.moderators = {}
+		self.complete = complete
+
+	def __str__(self):
+		return self.name
 
 	def over_million(self):
 		return self.view_count > 1000000
@@ -75,111 +178,49 @@ class Subreddit:
 	def over_hundredk(self):
 		return self.view_count > 100000
 
+	def get_view_count(self):
+		if self.view_count == -1:
+			if self.subscribers == -1:
+				return -1
+			return self.subscribers
+		return self.view_count
+
+	def is_estimated(self):
+		return self.view_count == -1
+
+	def moderator_names(self):
+		names = []
+		for moderator in self.moderators.values():
+			names.append(moderator.name)
+		return names
+
 
 if __name__ == "__main__":
 	reddit = praw.Reddit("Watchful1", user_agent="Mod limits checker")
 
-	bots = {
-		"admin-tattler",
-		"AutoModerator",
-		"comment-nuke",
-		"toolboxnotesxfer",
-		"FortniteStatusBot",
-		"BattleBusBot",
-		"MAGIC_EYE_BOT",
-		"CustomModBot",
-		"floodassistant",
-		"SnooSync",
-		"community-home",
-		"live-quests",
-		"subreddit-status",
-		"FortniteRedditMods",
-		"HomebaseBot",
-		"WorldNewsMods",
-		"auto-modmail",
-		"purge-user",
-		"hive-protect",
-		"evasion-guard",
-		"report-dismisser",
-		"un-filter",
-		"bot-bouncer",
-		"IAmAModBot",
-		"AssistantBOT1",
-		"IAmAModBot",
-		"spam-nuke",
-		"modmail-userinfo",
-		"spam-src-spotter",
-		"LegoAdminBot",
-		"drawing-app",
-		"IAmAModBot",
-		"automod-sync",
-		"modmailtodiscord",
-		"trendingtattler",
-		"RepostSleuthBot",
-		"FoodVisibilityBot",
-		"modmailassistant",
-		"ban-context",
-		"image-sourcery",
-		"DuplicateDestroyer",
-		"comment-cap",
-		"community-hub",
-		"flairassistant",
-		"flair-schedule",
-		"ignoreassistant",
-		"mod-mentions",
-		"modqueue-enhance",
-		"modqueue-tools",
-		"onedayflair",
-		"priority-reports",
-		"reputatorbot",
-		"self-ban",
-		"sendtoany",
-		"spambotbuster",
-		"spotlight-app",
-		"subchart",
-		"sub-stats-bot",
-		"urlcopy",
-		"user-flair-bot",
-		"spot-comments",
-		"submission2wiki",
-		"unscramble-game",
-		"link-navi",
-		"vip-bot",
-		"modqueue-nuke",
-		"modmailremindme",
-		"app-reply-notify",
-		"timed-highlights",
-		"image-moderator",
-		"queue-pruner",
-		"BotDefense",
-		"MaxImageBot",
-		"ModeratelyHelpfulBot",
-		"ContextModBot",
-		"Portrait_Robot",
-		"Piercing-Moderator",
-		"auto-post-lock",
-		"automod-toggle",
-	}
+	bots = set()
+	with open("bots.txt", "r", encoding="utf-8") as file_handle:
+		for line in file_handle:
+			bots.add(line.strip().lower())
+
+	log.info(f"Loaded {len(bots)} mod bots")
 
 	subreddit_string = """
-worldnews	4,404,769
-lego	1,192,877
-FortNiteBR	811,376
 bayarea	806,318
+ListOfSubreddits	198,192
+FortNiteBR	811,376
+Fortnite	101,693
+worldnews	4,404,769
 IAmA	755,361
-food	509,222
 florida	425,751
+orlando	210,722
+ukraine	341,604
+lego	1,192,877
+legostarwars	196,810
 painting	270,030
 drawing	211,425
-orlando	210,722
-ListOfSubreddits	198,192
-legostarwars	196,810
 PixelArt	167,262
 learntodraw	141,263
-pasta	109,622
-1980s	103,412
-Fortnite	101,693
-ukraine	341,604
 piercing	1,030,577
 PeterExplainsTheJoke	7,099,944
 AMA	2,125,246
@@ -194,22 +235,106 @@ PublicFreakout	2,882,628
 WhitePeopleTwitter	970,177
 LosAngeles	610,920
 NewOrleans	161,598
+help	600,156
+EndTipping	245,827
+WFH	205,961
+vintage	61,556
+fortyfivefiftyfive	173,618
+PixelArt	167,262
+Fallout76Marketplace	12,305
+Windows11	828,778
+WindowsHelp	823,120
+Windows10	812,096
+windows	527,176
+MicrosoftTeams	209,715
+tattoos	1,310,000
+fightporn	876,302
+outfits	798,890
+vancouver	584,432
+rocks	189,741
+askvan	188,398
+software	603,733
+nationalpark	210,374
+msp	163,538
+medical	160,809
+brasil	518,552
+findareddit	172,572
+NewToReddit	161,630
+opiniaoimpopular	156,415
+MemesBR	146,435
+saopaulo	120,223
+PergunteReddit	117,523
 """
 
-	subreddits = {}
+	holder = load_data(bots)
+
 	for line in subreddit_string.split("\n"):
 		if line == "":
 			continue
-		subreddit_name, view_count_string = line.split("\t")
-		view_count = int(view_count_string.replace(",",""))
-		subreddit = Subreddit(subreddit_name, view_count)
-		subreddits[subreddit_name] = subreddit
-	moderators = {}
+		subreddit_name, view_count_string = line.lower().split("\t")
+		view_count = int(view_count_string.replace(",", ""))
+		subreddit = holder.get_or_add_subreddit(subreddit_name)
+		subreddit.view_count = view_count
 
-	# subreddits = [
-	# 	["bayarea", 806318],
-	# 	["listofsubreddits", 198192],
-	# ]
+	# loop through subreddits to get the ones we need to look up
+	subreddits_to_lookup = []
+	for subreddit in holder.subreddits.values():
+		if subreddit.view_count != -1 and not subreddit.complete:
+			subreddits_to_lookup.append(subreddit)
+	log.info(f"{len(subreddits_to_lookup)} subreddits to lookup moderator list")
+
+	# loop though them and lookup the moderator list
+	i = 0
+	for subreddit in subreddits_to_lookup:
+		i += 1
+		for reddit_moderator in reddit.subreddit(subreddit.name).moderator():
+			moderator = holder.get_or_add_moderator(reddit_moderator.name, subreddit.name)
+		subreddit.complete = True
+		log.info(f"{i}/{len(subreddits_to_lookup)}: r/{subreddit.name} has {len(subreddit.moderators)} moderators")
+
+	save_data(holder)
+	log.info(f"Saved {len(holder.subreddits)} subreddits and {len(holder.moderators)} moderators")
+
+	# loop through moderators to get list of ones to lookup
+	moderators_to_lookup = []
+	for moderator in holder.moderators.values():
+		if not moderator.complete:
+			moderators_to_lookup.append(moderator)
+
+	# loop through moderators to get sub list
+	i = 0
+	for moderator in moderators_to_lookup:
+		i += 1
+		for reddit_subreddit in reddit.redditor(moderator.name).moderated():
+			if reddit_subreddit.subscribers < 10000:
+				continue
+			subreddit = holder.get_or_add_subreddit(reddit_subreddit.display_name, moderator.name)
+			if subreddit.subscribers == -1:
+				subreddit.subscribers = reddit_subreddit.subscribers
+		moderator = holder.get_or_add_moderator(moderator.name)
+		moderator.complete = True
+		log.info(f"{i}/{len(moderators_to_lookup)}: u/{moderator.name} has {len(moderator.subreddits)} subreddits")
+		if i >= 200:
+			break
+
+	save_data(holder)
+	log.info(f"Saved {len(holder.subreddits)} subreddits and {len(holder.moderators)} moderators")
+
+	log.info(f"Top moderators")
+	sorted_moderators = []
+	for moderator in holder.moderators.values():
+		sorted_moderators.append((moderator.name, len(moderator.subreddits)))
+	sorted_moderators = sorted(sorted_moderators, key=lambda x: x[1], reverse=True)
+	for moderator_name, count in sorted_moderators[:10]:
+		log.info(f"u/{moderator_name} : {count}")
+
+
+	# loop moderators
+	# loop first unknown subreddits
+
+	sys.exit()
+
+
 
 	for subreddit in list(subreddits.values()):
 		for reddit_moderator in reddit.subreddit(subreddit.name).moderator():
