@@ -143,17 +143,17 @@ class Moderator:
 	def __str__(self):
 		return self.name
 
-	def count_over_million(self):
+	def count_over_million(self, use_estimated=False):
 		count = 0
 		for subreddit in self.subreddits.values():
-			if subreddit.over_million():
+			if subreddit.over_million(use_estimated):
 				count += 1
 		return count
 
-	def count_over_hundredk(self):
+	def count_over_hundredk(self, use_estimated=False):
 		count = 0
 		for subreddit in self.subreddits.values():
-			if subreddit.over_hundredk():
+			if subreddit.over_hundredk(use_estimated):
 				count += 1
 		return count
 
@@ -164,14 +164,14 @@ class Moderator:
 				count += 1
 		return count
 
-	def is_affected(self):
-		return self.count_over_million() > 1 or self.count_over_hundredk() > 5
+	def is_affected(self, use_estimated=False):
+		return self.count_over_million(use_estimated) > 1 or self.count_over_hundredk(use_estimated) > 5
 
-	def count_drop_million(self):
-		return max(self.count_over_million() - 1, 0)
+	def count_drop_million(self, use_estimated=False):
+		return max(self.count_over_million(use_estimated) - 1, 0)
 
-	def count_drop_hundredk(self):
-		return max(self.count_over_hundredk() - 5, 0)
+	def count_drop_hundredk(self, use_estimated=False):
+		return max(self.count_over_hundredk(use_estimated) - 5, 0)
 
 	def subreddit_names(self):
 		names = []
@@ -191,11 +191,17 @@ class Subreddit:
 	def __str__(self):
 		return self.name
 
-	def over_million(self):
-		return self.view_count > 1000000
+	def over_million(self, use_estimated=False):
+		if use_estimated:
+			return self.get_view_count() > 1000000
+		else:
+			return self.view_count > 1000000
 
-	def over_hundredk(self):
-		return self.view_count > 100000
+	def over_hundredk(self, use_estimated=False):
+		if use_estimated:
+			return self.get_view_count() > 100000
+		else:
+			return self.view_count > 100000
 
 	def get_view_count(self):
 		if self.view_count == -1:
@@ -225,65 +231,62 @@ if __name__ == "__main__":
 	log.info(f"Loaded {len(bots)} mod bots")
 
 	subreddit_string = """
-bayarea	806,318
-ListOfSubreddits	198,192
-FortNiteBR	811,376
-Fortnite	101,693
+popculturechat	7,459,372
+peterexplainsthejoke	7,099,944
 worldnews	4,404,769
-IAmA	755,361
-florida	425,751
-orlando	210,722
-ukraine	341,604
+publicfreakout	2,882,628
+ama	2,125,246
+tattoos	1,310,000
 lego	1,192,877
-legostarwars	196,810
-painting	270,030
-drawing	211,425
-PixelArt	167,262
-learntodraw	141,263
 piercing	1,030,577
-PeterExplainsTheJoke	7,099,944
-AMA	2,125,246
+whitepeopletwitter	970,177
+fightporn	876,302
+windows11	828,778
+windowshelp	823,120
+windows10	812,096
+fortnitebr	811,376
+bayarea	806,318
+outfits	798,890
+iama	755,361
+losangeles	610,920
+software	603,733
+help	600,156
+vancouver	584,432
+windows	527,176
+brasil	518,552
+florida	425,751
 dinosaurs	380,777
 iamatotalpieceofshit	363,687
+ukraine	341,604
 rocketleague	317,096
-NoahGetTheBoat	292,572
-metalworking	150,580
-ITookAPicture	149,443
-popculturechat	7,459,372
-PublicFreakout	2,882,628
-WhitePeopleTwitter	970,177
-LosAngeles	610,920
-NewOrleans	161,598
-help	600,156
-EndTipping	245,827
-WFH	205,961
-vintage	61,556
-fortyfivefiftyfive	173,618
-PixelArt	167,262
-Fallout76Marketplace	12,305
-Windows11	828,778
-WindowsHelp	823,120
-Windows10	812,096
-windows	527,176
-MicrosoftTeams	209,715
-tattoos	1,310,000
-fightporn	876,302
-outfits	798,890
-vancouver	584,432
+drugs	313,495
+noahgettheboat	292,572
+painting	270,030
+endtipping	245,827
+drawing	211,425
+orlando	210,722
+nationalpark	210,374
+microsoftteams	209,715
+wfh	205,961
+listofsubreddits	198,192
+legostarwars	196,810
 rocks	189,741
 askvan	188,398
-software	603,733
-nationalpark	210,374
-msp	163,538
-medical	160,809
-brasil	518,552
+fortyfivefiftyfive	173,618
 findareddit	172,572
-NewToReddit	161,630
+pixelart	167,262
+msp	163,538
+newtoreddit	161,630
+neworleans	161,598
+medical	160,809
 opiniaoimpopular	156,415
-MemesBR	146,435
+metalworking	150,580
+itookapicture	149,443
+memesbr	146,435
+learntodraw	141,263
 saopaulo	120,223
-PergunteReddit	117,523
-drugs	313,495
+perguntereddit	117,523
+fortnite	101,693
 """
 
 	holder = load_data(bots, subreddit_string)
@@ -340,19 +343,19 @@ drugs	313,495
 	# for moderator_name, count in sorted_moderators[:10]:
 	# 	log.info(f"u/{moderator_name} : {count}")
 
-	unknown_subreddits = {}
-	for subreddit in sorted(holder.subreddits.values(), key=lambda x: x.get_view_count(), reverse=True):
-		log.info(f"r/{subreddit.name}")
-		if subreddit.view_count == -1 and subreddit.name not in unknown_subreddits:
-			unknown_subreddits[subreddit.name] = subreddit
-		count_affected = 0
-		for moderator in subreddit.moderators.values():
-			if subreddit.over_million() and moderator.count_drop_million() > 0:
-				count_affected += 1
-			elif subreddit.over_hundredk() and moderator.count_drop_hundredk() > 0:
-				count_affected += 1
-			log.info(f"    u/{moderator.name}: {len(moderator.subreddits)} : {moderator.count_over_million()} : {moderator.count_over_hundredk()} : {moderator.count_unknown()}")
-		log.info(f"        {count_affected}")
+	# unknown_subreddits = {}
+	# for subreddit in sorted(holder.subreddits.values(), key=lambda x: x.get_view_count(), reverse=True):
+	# 	log.info(f"r/{subreddit.name}")
+	# 	if subreddit.view_count == -1 and subreddit.name not in unknown_subreddits:
+	# 		unknown_subreddits[subreddit.name] = subreddit
+	# 	count_affected = 0
+	# 	for moderator in subreddit.moderators.values():
+	# 		if subreddit.over_million() and moderator.count_drop_million() > 0:
+	# 			count_affected += 1
+	# 		elif subreddit.over_hundredk() and moderator.count_drop_hundredk() > 0:
+	# 			count_affected += 1
+	# 		log.info(f"    u/{moderator.name}: {len(moderator.subreddits)} : {moderator.count_over_million()} : {moderator.count_over_hundredk()} : {moderator.count_unknown()}")
+	# 	log.info(f"        {count_affected}")
 
 	log.info(f"----------------------------------------------")
 
@@ -360,15 +363,40 @@ drugs	313,495
 		if subreddit.view_count == -1:
 			continue
 		count_affected = 0
+		count_estimated_affected = 0
 		count_unknown = 0
 		for moderator in subreddit.moderators.values():
 			if subreddit.over_million() and moderator.count_drop_million() > 0:
 				count_affected += 1
 			elif subreddit.over_hundredk() and moderator.count_drop_hundredk() > 0:
 				count_affected += 1
+			if subreddit.over_million() and moderator.count_drop_million(True) > 0:
+				count_estimated_affected += 1
+			elif subreddit.over_hundredk() and moderator.count_drop_hundredk(True) > 0:
+				count_estimated_affected += 1
 			if moderator.count_unknown() > 0:
 				count_unknown += 1
-		print(f"{subreddit.name}	{subreddit.view_count}	{len(subreddit.moderators)}	{count_affected}	{count_unknown}")
+
+
+
+		print(f"{subreddit.name}	{subreddit.view_count:,}	{len(subreddit.moderators)}	{count_affected}	{count_estimated_affected}	{count_unknown}")
+
+	# num mods
+	# num affected mods
+	# num unknown mods
+	# num estimated mods
+	# subreddit counts needed list
+	# mods affected with count of subreddits to choose from
+	# affected score
+	# 	for each mod, subreddits they have to choose from
+	#   divided by total mods
+	#
+
+	# affected mods
+	# total subs
+	# drop subs over each limit
+	#
+
 
 	# log.info(f"----------------------------------------------")
 	# log.info(f"Unknown subreddits")
