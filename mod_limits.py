@@ -78,7 +78,7 @@ def load_data(bots, subreddits_string):
 
 	file_handle.close()
 
-	for line in subreddit_string.split("\n"):
+	for line in subreddits_string.split("\n"):
 		if line == "":
 			continue
 		subreddit_name, view_count_string = line.lower().split("\t")

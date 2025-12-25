@@ -5,8 +5,8 @@ import os
 log = discord_logging.init_logging()
 
 if __name__ == "__main__":
-	backup_folder = r"D:\backup\RemindMeBot"
-	delete_folder = r"D:\backup\RemindMeBotDelete"
+	backup_folder = r"D:\backup\ModQueueNotifier"
+	delete_folder = r"D:\backup\ModQueueNotifierDelete"
 
 	if not os.path.exists(delete_folder):
 		os.makedirs(delete_folder)

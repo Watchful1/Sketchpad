@@ -2,6 +2,7 @@ import praw
 from datetime import datetime
 import logging
 from praw import endpoints
+import json
 
 handler = logging.StreamHandler()
 handler.setLevel(logging.DEBUG)
@@ -14,20 +15,7 @@ if __name__ == "__main__":
 	reddit_watchful = praw.Reddit("Watchful1")
 	reddit_bottest = praw.Reddit("Watchful1BotTest")
 
-	# compose message
-	# mark read
-	# inbox
-	# unread inbox
-	# stream inbox
-
-	# id of sent messages
-	# links to old system messages
-	# comment replies in inbox
-	# limits, multisend endpoint
-	# message/mentions and mentions in general
-
-
-
-
-	# response = reddit.request(method="GET", path=endpoints.API_PATH["info"], params={"id": id_string})
-	# print(response['data']['children'])
+	response = reddit_watchful.request(method="GET", path="/message/inbox", params={"mark": False, "limit": 100, "show": "all"})
+	for message in response['data']['children']:
+		print(message['data']['new'])
+	print(json.dumps(response, sort_keys=True))
