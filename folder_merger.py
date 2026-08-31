@@ -1,10 +1,37 @@
 import discord_logging
 import os
+import sys
 import hashlib
 from collections import defaultdict
 from pathlib import Path
 
 log = discord_logging.init_logging(debug=True)
+
+base = r"\\MYCLOUDPR4100\Public\asstr"
+
+
+class SourceFile:
+	def __init__(self, folder, path, file_hash):
+		global base
+		self.folder = folder
+		self.path = path
+		self.file_hash = file_hash
+
+		full_path = Path(os.path.join(base, folder, path))
+		file_type = full_path.suffix
+		if len(file_type) == 0:
+			self.file_type = None
+		else:
+			self.file_type = file_type[1:]
+		self.name = full_path.stem
+		self.with_parent = os.path.join(full_path.parent.stem, self.name)
+
+	def get_full_path(self):
+		global base
+		return os.path.join(base, self.folder, self.path)
+
+	def __str__(self):
+		return f"{self.path} : {self.file_hash}"
 
 def hash_file(file_name):
 	h = hashlib.md5()
@@ -46,25 +73,35 @@ def try_load_hashes(base, folder):
 	files = []
 	for line in hashes_file:
 		path, file_hash = line.split("\t")
-		full_path = os.path.join(base, folder, path)
-		file_type = Path(full_path).suffix
-		if len(file_type) == 0:
-			file_type = None
-		else:
-			file_type = file_type[1:]
-		files.append((folder, path, file_hash, file_type))
+		files.append(SourceFile(folder, path, file_hash.strip()))
 
 	return files
 
 
+def lookup_exclude(lookup_table, file, key_name):
+	key = getattr(file, key_name)
+	result_list = lookup_table.get(key)
+	if result_list is None:
+		return None
+	if len(result_list) == 1:
+		return None
+	excluded_list = []
+	for result in result_list:
+		if result.folder != file.folder:
+			excluded_list.append(result)
+	return excluded_list
+
 
 if __name__ == "__main__":
 	base = r"\\MYCLOUDPR4100\Public\asstr"
-	#folders = ["mirror", "torrent", "wayback", "xyz_1", "xyz_2", "xyz_3"]
-	folders = ["xyz_2", "xyz_3"]
+	folders = ["mirror", "mirror2", "torrent", "wayback", "xyz_1", "xyz_2", "xyz_3", "ftp"]
+	#folders = ["xyz_1", "xyz_2", "xyz_3"]
 
-	all_files = defaultdict(list)
-	all_folders = {}
+	files_by_hash = defaultdict(list)
+	files_by_name = defaultdict(list)
+	files_by_with_parent = defaultdict(list)
+	files_by_path = defaultdict(list)
+	all_files_by_folder = {}
 	for folder in folders:
 		log.info(f"Trying to load hashes for {folder}")
 		files = try_load_hashes(base, folder)
@@ -73,18 +110,72 @@ if __name__ == "__main__":
 			scan_save_hashes(base, folder)
 			files = try_load_hashes(base, folder)
 		log.info(f"Finished loading hashes for {folder}. {len(files)} hashes loaded")
-		all_folders[folder] = files
+		all_files_by_folder[folder] = files
 
-		for folder2, path, file_hash, file_type in files:
-			all_files[file_hash].append((folder2, path, file_hash, file_type))
+		for file in files:
+			files_by_hash[file.file_hash].append(file)
+			files_by_name[file.name].append(file)
+			files_by_with_parent[file.with_parent].append(file)
+			files_by_path[file.path].append(file)
+	sys.exit()
 
+	matched_hashes, total_hashes = 0, 0
+	files_with_no_hash_matches = []
+	files_with_no_hash_name_matches = []
+	files_with_no_hash_with_parent_matches = []
+	files_with_no_hash_but_with_name_matches = []
 
-	for folder in all_folders.keys():
-		matched_hashes, total_hashes = 0, 0
-		for folder2, path, file_hash, file_type in all_folders[folder]:
-			if len(all_files[file_hash]) > 1:
-				matched_hashes += 1
-			total_hashes += 1
-		log.info(f"{folder}: {matched_hashes} matched, {total_hashes} total")
+	files_with_exact_matches = defaultdict(int)
+	folder = "xyz_1"
+	log.info(f"Iterating {len(all_files_by_folder[folder]):,} files in folder {folder}")
+	for file in all_files_by_folder[folder]:
+		matched_by_hash = lookup_exclude(files_by_hash, file, "file_hash")
+		matched_by_name = lookup_exclude(files_by_name, file, "name")
+		matched_by_with_parent = lookup_exclude(files_by_with_parent, file, "with_parent")
+		matched_by_path = lookup_exclude(files_by_path, file, "path")
+		if matched_by_path is not None:
+			exact_matches = 0
+			for matched_file in matched_by_path:
+				if matched_file.file_hash == file.file_hash:
+					exact_matches += 1
+			files_with_exact_matches[exact_matches] += 1
+
+		if matched_by_hash is None:
+			files_with_no_hash_matches.append(file)
+			if matched_by_name is None:
+				files_with_no_hash_name_matches.append(file)
+			else:
+				files_with_no_hash_but_with_name_matches.append(file)
+			if matched_by_with_parent is None:
+				files_with_no_hash_with_parent_matches.append(file)
+		else:
+			matched_hashes += 1
+		total_hashes += 1
+		if total_hashes % 10000 == 0:
+			log.info(f"{total_hashes:,}/{len(all_files_by_folder[folder]):,}")
+
+	log.info(f"{folder}: {matched_hashes} matched, {total_hashes} total")
+	log.info(f"{folder}: Files with no hash matches: {len(files_with_no_hash_matches)}")
+	for file in files_with_no_hash_matches[:10]:
+		log.info(f"    {file}")
+	log.info(f"{folder}: Files with no hash matches and no name matches: {len(files_with_no_hash_name_matches)}")
+	for file in files_with_no_hash_name_matches[:10]:
+		log.info(f"    {file}")
+	log.info(f"{folder}: Files with no hash matches but with name matches: {len(files_with_no_hash_but_with_name_matches)}")
+	for file in files_with_no_hash_but_with_name_matches[:10]:
+		log.info(f"    {file}")
+	log.info(f"{folder}: Files with no hash matches and no parent matches: {len(files_with_no_hash_with_parent_matches)}")
+	for file in files_with_no_hash_with_parent_matches[:10]:
+		log.info(f"    {file}")
+	for matches, count in files_with_exact_matches.items():
+		log.info(f"{count} files have {matches} exact matches")
+
+	# for folder in all_folders.keys():
+	# 	matched_hashes, total_hashes = 0, 0
+	# 	for folder2, path, file_hash, file_type in all_folders[folder]:
+	# 		if len(all_files[file_hash]) > 1:
+	# 			matched_hashes += 1
+	# 		total_hashes += 1
+	# 	log.info(f"{folder}: {matched_hashes} matched, {total_hashes} total")
 
 
